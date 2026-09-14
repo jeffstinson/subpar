@@ -10,6 +10,7 @@ export const GO_LIVE_MIGRATIONS = [
   { id:"0003", file:"0003_access_hardening.sql", purpose:"Default-deny browser writes + immutable audit boundaries" },
   { id:"0004", file:"0004_integration_staging.sql", purpose:"Wix/Gmail receipt ledger + outbound queue" },
   { id:"0005", file:"0005_go_live_imports.sql", purpose:"Resumable historical import batches + conflict ledger" },
+  { id:"0006", file:"0006_intake_activation.sql", purpose:"Paid-order intake staging + provider cutover checkpoints" },
 ];
 
 export const GO_LIVE_ENV_GROUPS = [
@@ -74,7 +75,7 @@ export function getGoLiveReadiness() {
     importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED === "true",
     recommendedSequence:[
       "Provision dedicated Subpar Supabase project",
-      "Run migrations 0001 through 0005 in order",
+      "Run migrations 0001 through 0006 in order",
       "Seed synthetic records and verify dashboard parity",
       "Create Doug owner + synthetic customer identities",
       "Verify login, route boundaries and private files",
