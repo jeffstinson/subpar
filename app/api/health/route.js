@@ -19,7 +19,7 @@ export async function GET(){
       dataCore:"ready",
       persistence:{adapter:readiness.repositoryAdapter,supabaseConfigured:readiness.supabaseConfigured,connectivity:readiness.connectivity,realDataGate:readiness.realDataGate},
       identity:{mode:auth.mode,provider:access.authProvider,publicAuthConfigured:auth.publicAuthConfigured,internalAuthEnabled:auth.internalAuthEnabled,portalAuthEnabled:auth.portalAuthEnabled,defaultDeny:access.defaultDeny},
-      storage:{provider:storage.provider,privateByDefault:storage.privateByDefault,signedDownloads:storage.signedDownloads,signedUploads:storage.signedUploads,buckets:Object.values(storage.buckets)},
+      storage:{provider:storage.provider,privateByDefault:storage.privateByDefault,signedDownloads:storage.signedDownloads,signedUploads:storage.signedUploads,uploadFinalization:storage.uploadFinalization,ticketSecretConfigured:storage.ticketSecretConfigured,buckets:Object.values(storage.buckets)},
       normalizedCounts:system.counts || null,
       integrations:system.integrations,
       ndaGate:system.ndaGate,
