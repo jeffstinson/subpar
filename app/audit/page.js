@@ -27,24 +27,24 @@ const sections = [
     items: ["BMW/Supra chassis presets", "Factory tank capacities", "Editable pump ethanol", "Impossible-target detection"],
   },
   {
-    title: "Data model & server boundary", icon: Database, status: "FOUNDATION", tone: "pass", score: "78%",
-    body: "A normalized server-side data model, versioned API surface and dry-run mutation boundary are now in place underneath the synthetic UI.",
-    items: ["Customers / vehicles / orders / projects", "Revisions / logs / files / messages / events", "Versioned /api/v1 routes", "Repository adapter boundary"],
+    title: "Data model & persistence boundary", icon: Database, status: "FOUNDATION", tone: "pass", score: "88%",
+    body: "The normalized data core now has a swappable demo/Supabase repository, a deterministic synthetic seed, environment validation and a live connectivity readiness check.",
+    items: ["Customers / vehicles / orders / projects", "Supabase REST adapter", "Deterministic synthetic seed", "Versioned /api/v1 readiness"],
   },
   {
     title: "Asset control", icon: ImageIcon, status: "FOLLOW-UP", tone: "warn", score: "80%",
-    body: "The logo is now locally controlled. Vehicle photography still relies on externally hosted stock imagery and should be curated before final launch.",
+    body: "The logo is locally controlled. Vehicle photography still relies on externally hosted stock imagery and should be curated before final launch.",
     items: ["Curate licensed final vehicle set", "Move hero/garage images under app control", "Adopt next/image", "Add image fallback strategy"],
   },
   {
-    title: "Routing & application structure", icon: Wrench, status: "FOLLOW-UP", tone: "warn", score: "82%",
-    body: "Deep flows use proper URLs and server APIs now exist, while several dashboard areas still behave as local client-side tabs.",
-    items: ["Convert queue/garage/messages to routes", "Read dashboard from repository/API", "Reduce root client bundle", "Add automated tests"],
+    title: "Routing & application structure", icon: Wrench, status: "FOLLOW-UP", tone: "warn", score: "84%",
+    body: "Deep flows use proper URLs and the server contract is now persistence-ready, while several dashboard areas still behave as local client-side tabs.",
+    items: ["Convert queue/garage/messages to routes", "Read dashboard directly from repository/API", "Reduce root client bundle", "Add automated tests"],
   },
   {
-    title: "Security, identity & live integrations", icon: KeyRound, status: "GATED", tone: "gated", score: "45%",
-    body: "Schema and environment boundaries are defined, but authentication, live Supabase persistence and external integrations remain intentionally disabled.",
-    items: ["Isolated Supabase project", "Internal + portal authentication", "Wix webhook verification", "Gmail OAuth / secret handling"],
+    title: "Security, identity & live integrations", icon: KeyRound, status: "GATED", tone: "gated", score: "52%",
+    body: "Server-only credential boundaries, RLS-first schema and dry-run mutations are in place. Auth, real persistence and external integrations are still intentionally disabled.",
+    items: ["Provision isolated Supabase project", "Internal + portal authentication", "Wix webhook verification", "Gmail OAuth / secret handling"],
   },
 ];
 
@@ -53,12 +53,12 @@ export default function AuditPage() {
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}><ArrowLeft size={15}/> Dashboard</Link>
       <div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>PRODUCT AUDIT</span></div></div>
-      <div style={{display:"flex",gap:8}}><Link className={styles.health} href="/data-core">Data core <ChevronRight size={13}/></Link><a className={styles.health} href="/api/health">Health <ChevronRight size={13}/></a></div>
+      <div style={{display:"flex",gap:8}}><Link className={styles.health} href="/persistence">Persistence <ChevronRight size={13}/></Link><a className={styles.health} href="/api/health">Health <ChevronRight size={13}/></a></div>
     </header>
 
     <section className={styles.hero}>
-      <div><span className={styles.eyebrow}>FULL PRODUCT AUDIT • 2026-09-14</span><h1>Preview-grade product. Production foundation underway.</h1><p>The Vercel build is cohesive enough for Doug to evaluate as a real tuning operating system, and the first production architecture layer now sits underneath it: normalized records, server APIs, mutation guards and an isolated Supabase schema.</p></div>
-      <div className={styles.score}><span>BUILD READINESS</span><b>94</b><small>/ 100 preview</small></div>
+      <div><span className={styles.eyebrow}>FULL PRODUCT AUDIT • 2026-09-14</span><h1>Preview-grade product. Persistence-ready foundation.</h1><p>The Vercel build is cohesive enough for Doug to evaluate as a real tuning operating system, and the backend contract can now switch from synthetic memory to a dedicated Subpar Supabase database without redesigning the application.</p></div>
+      <div className={styles.score}><span>BUILD READINESS</span><b>95</b><small>/ 100 preview</small></div>
     </section>
 
     <section className={styles.summary}>
@@ -77,8 +77,8 @@ export default function AuditPage() {
     })}</section>
 
     <section className={styles.next}>
-      <div><span className={styles.eyebrow}>CURRENT PRODUCTION PHASE</span><h2>Connect the normalized data core to isolated Supabase persistence.</h2><p>The migration, server repository contract, API surface and environment boundaries are now defined. The next live-data step is creating the dedicated Subpar Supabase project, then seeding synthetic data before any real Wix/Gmail records are touched.</p></div>
-      <div className={styles.nextSteps}>{["Create isolated Supabase project","Run core schema migration","Add authenticated server adapter","Seed synthetic project records","Then connect Wix + Gmail"].map((step,index) => <div key={step}><span>{index+1}</span><b>{step}</b></div>)}</div>
+      <div><span className={styles.eyebrow}>CURRENT PRODUCTION PHASE</span><h2>Provision isolated Supabase and prove database parity with fake data.</h2><p>The adapter, migration, seed and environment checks are complete. The next external step is creating the dedicated Subpar Supabase project, running the migration/seed, then flipping reads to Supabase while writes stay disabled.</p></div>
+      <div className={styles.nextSteps}>{["Create isolated Supabase project","Run core schema migration","Set server-only credentials","Run deterministic synthetic seed","Switch reads to Supabase","Verify parity before writes"].map((step,index) => <div key={step}><span>{index+1}</span><b>{step}</b></div>)}</div>
     </section>
   </main>;
 }
