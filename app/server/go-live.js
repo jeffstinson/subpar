@@ -27,7 +27,7 @@ export const GO_LIVE_ENV_GROUPS = [
   },
   {
     id:"gates", label:"Activation gates", required:true,
-    vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"],
+    vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_IMPORT_APPLY_ENABLED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"],
   },
 ];
 
@@ -71,6 +71,7 @@ export function getGoLiveReadiness() {
     envGroups,
     migrations:GO_LIVE_MIGRATIONS,
     integrationReadiness:integrations,
+    importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED === "true",
     recommendedSequence:[
       "Provision dedicated Subpar Supabase project",
       "Run migrations 0001 through 0005 in order",
@@ -79,6 +80,7 @@ export function getGoLiveReadiness() {
       "Verify login, route boundaries and private files",
       "Configure Wix + Gmail credentials with all apply/send gates OFF",
       "Run historical import dry-runs and resolve conflicts",
+      "Enable historical import apply and reconcile provider counts",
       "Enable signed Wix ingress",
       "Apply historical Wix orders, then enable Wix live apply",
       "Run Gmail historical sync, then enable Gmail read sync",
