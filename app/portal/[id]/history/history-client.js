@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect,useState } from "react";
-import { Archive,ArrowLeft,CheckCircle2,Clock3,FileKey2,History,Loader2,RotateCcw,ShieldCheck,Wrench } from "lucide-react";
+import { Archive,ArrowLeft,CheckCircle2,Clock3,Download,FileKey2,History,Loader2,RotateCcw,ShieldCheck,Wrench } from "lucide-react";
 import styles from "./history.module.css";
 
 function nice(value){return String(value||"—").replaceAll("_"," ")}
@@ -10,7 +10,20 @@ function nice(value){return String(value||"—").replaceAll("_"," ")}
 export default function CustomerTuneHistoryClient({projectNumber}){
   const id=projectNumber||"SP-1842";
   const [data,setData]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState("");
+  const [busyCycle,setBusyCycle]=useState(null),[notice,setNotice]=useState("");
   useEffect(()=>{(async()=>{try{const r=await fetch(`/api/v1/portal/history/${encodeURIComponent(id)}?preview=alex`,{cache:"no-store"});const b=await r.json();if(!r.ok)throw new Error(b.error||"Unable to load tune history");setData(b.data)}catch(e){setError(e.message)}finally{setLoading(false)}})()},[id]);
+
+  async function downloadArchived(cycle){
+    if(!cycle?.id)return;
+    setBusyCycle(cycle.id);setNotice("");
+    try{
+      const response=await fetch(`/api/v1/portal/history/${encodeURIComponent(id)}/download?preview=alex`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cycleId:cycle.id})});
+      const body=await response.json();if(!response.ok)throw new Error(body.error||"Unable to create archive download");
+      if(body.data?.signedUrl)window.open(body.data.signedUrl,"_blank","noopener,noreferrer");
+      setNotice(body.data?.dryRun?"Preview: Subpar OS would issue a short-lived signed URL for this cycle's exact final calibration.":`Secure download opened for ${body.data?.fileName||"final calibration"}.`);
+    }catch(e){setNotice(e.message)}finally{setBusyCycle(null)}
+  }
+
   if(loading)return <main className={styles.center}><Loader2 size={24}/><b>Loading your tune history…</b></main>;
   if(error)return <main className={styles.center}><Archive size={24}/><b>{error}</b><Link href={`/portal/${id}`}>Back to portal</Link></main>;
   const project=data?.project||{},cycles=data?.cycles||[],vehicle=[project.vehicle?.year,project.vehicle?.make,project.vehicle?.model].filter(Boolean).join(" ");
@@ -23,9 +36,10 @@ export default function CustomerTuneHistoryClient({projectNumber}){
       {cycle.closeout?<div className={styles.closeout}>
         <div className={styles.summary}><ShieldCheck size={17}/><div><b>Final Rev {cycle.closeout.finalRevisionNumber||"—"}</b><p>{cycle.closeout.customerSummary||"Completed calibration archived by Subpar Tuning."}</p></div></div>
         {cycle.closeout.aftercareNotes&&<div className={styles.aftercare}><Archive size={15}/><p>{cycle.closeout.aftercareNotes}</p></div>}
-        <div className={styles.package}><span><FileKey2 size={14}/>Final package</span><b>{cycle.closeout.packageManifest?.finalTune?.name||"Secure final calibration"}</b><small>{cycle.closeout.packageManifest?.parameterPacks?.length||0} reference pack(s) · private portal delivery</small></div>
+        <div className={styles.package}><span><FileKey2 size={14}/>Final package</span><div><b>{cycle.closeout.packageManifest?.finalTune?.name||"Secure final calibration"}</b><small>{cycle.closeout.packageManifest?.parameterPacks?.length||0} reference pack(s) · private portal delivery</small></div><button disabled={busyCycle===cycle.id||cycle.status!=="completed"} onClick={()=>downloadArchived(cycle)}><Download size={13}/>{busyCycle===cycle.id?"Opening…":"Download final tune"}</button></div>
       </div>:<div className={styles.open}><RotateCcw size={16}/><span>This tune cycle is still active.</span></div>}
     </article>)}</section>
     {!cycles.length&&<section className={styles.empty}><History size={28}/><b>No tune cycles yet</b><p>Your completed calibration history will appear here.</p></section>}
+    {notice&&<div className={styles.notice}>{notice}</div>}
   </main>;
 }
