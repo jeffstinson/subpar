@@ -1,13 +1,10 @@
-const requiredForSupabase = [
-  "SUBPAR_SUPABASE_URL",
-  "SUBPAR_SUPABASE_SERVICE_ROLE_KEY",
-];
-
 const optional = [
-  "SUBPAR_SUPABASE_ANON_KEY",
-  "SUBPAR_STORAGE_BUCKET_TUNES",
-  "SUBPAR_STORAGE_BUCKET_LOGS",
-  "SUBPAR_STORAGE_BUCKET_CUSTOMER",
+  "NEXT_PUBLIC_SUBPAR_SUPABASE_ANON_KEY",
+  "SUBPAR_BUCKET_STOCK_FILES",
+  "SUBPAR_BUCKET_REVISIONS",
+  "SUBPAR_BUCKET_LOGS",
+  "SUBPAR_BUCKET_PARAMETER_PACKS",
+  "SUBPAR_BUCKET_CUSTOMER_FILES",
 ];
 
 export function getDataMode() {
@@ -22,15 +19,26 @@ export function syntheticSeedAllowed() {
   return process.env.SUBPAR_ALLOW_SYNTHETIC_SEED === "true";
 }
 
+export function getSupabaseUrl() {
+  return process.env.SUBPAR_SUPABASE_URL || process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_URL || "";
+}
+
 function statusFor(name) {
   return Boolean(process.env[name]);
 }
 
 export function getPersistenceReadiness() {
   const mode = getDataMode();
-  const required = Object.fromEntries(requiredForSupabase.map(name => [name, statusFor(name)]));
+  const supabaseUrl = Boolean(getSupabaseUrl());
+  const serviceRole = Boolean(process.env.SUBPAR_SUPABASE_SERVICE_ROLE_KEY);
+  const required = {
+    SUBPAR_SUPABASE_URL: supabaseUrl,
+    SUBPAR_SUPABASE_SERVICE_ROLE_KEY: serviceRole,
+  };
   const optionalState = Object.fromEntries(optional.map(name => [name, statusFor(name)]));
-  const missing = requiredForSupabase.filter(name => !process.env[name]);
+  const missing = [];
+  if (!supabaseUrl) missing.push("SUBPAR_SUPABASE_URL or NEXT_PUBLIC_SUBPAR_SUPABASE_URL");
+  if (!serviceRole) missing.push("SUBPAR_SUPABASE_SERVICE_ROLE_KEY");
 
   return {
     mode,
