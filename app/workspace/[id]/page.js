@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bot, Car, ChevronRight, FileKey2, Gauge, Mail, ShieldCheck, Wrench } from "lucide-react";
 import { getProjectById } from "../../server/repository";
-import { resolveVehicleIntelligence } from "../../lib/vehicle-intelligence";
+import { resolveVehicleIntelligenceServer } from "../../server/intelligence-store";
 import styles from "./workspace.module.css";
 
 function nice(value){return String(value||"—").replaceAll("_"," ")}
@@ -21,8 +21,10 @@ export default async function TuneWorkspace({params}){
   const messages=project.messages||[];
   const events=project.events||[];
   const completed=requirements.filter(item=>item.status==="complete"||item.status==="done").length;
-  const intelligence=resolveVehicleIntelligence({make:vehicle.make,model:vehicle.model,chassis:vehicle.chassis,engine:vehicle.engine,platform:project.platform,fuel:project.fuelTarget});
-  const storedProfile=project.metadata?.intelligenceProfileKey||project.metadata?.intelligence_profile_key||null;
+  let intelligence;
+  try{intelligence=await resolveVehicleIntelligenceServer({make:vehicle.make,model:vehicle.model,chassis:vehicle.chassis,engine:vehicle.engine,platform:project.platform,fuel:project.fuelTarget})}
+  catch{intelligence={state:"review_required",engine:vehicle.engine,platform:project.platform,loggingRecipe:null,parameterPack:null,warnings:["Vehicle intelligence lookup failed; keep manual review enabled."],source:"error"}}
+  const storedProfile=project.metadata?.intelligenceProfileKey||project.metadata?.intelligence_profile_key||intelligence.profileKey||null;
 
   return <main className={styles.page}>
     <header className={styles.topbar}><Link href="/" className={styles.back}><ArrowLeft size={15}/>Dashboard</Link><div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>LIVE TUNE WORKSPACE</span></div></div><div className={styles.links}><Link href="/intelligence">Vehicle Intelligence <ChevronRight size={13}/></Link><Link href="/messages">Messages <ChevronRight size={13}/></Link><Link href={`/files/${project.projectNumber}`}>Files <ChevronRight size={13}/></Link></div></header>
@@ -41,7 +43,7 @@ export default async function TuneWorkspace({params}){
       </div>
 
       <aside className={styles.stack}>
-        <section className={styles.panel}><header><div><span>VEHICLE INTELLIGENCE</span><h2>{intelligence.engine||vehicle.engine||"Engine"} · {intelligence.platform||project.platform||"Platform"}</h2></div><Bot size={18}/></header><div className={styles.compact}><div><b>{nice(intelligence.state)}</b><span>{storedProfile?`Stored profile ${storedProfile}`:"Resolved from current vehicle context"}</span></div><div><b>{intelligence.loggingRecipe?.title||"No logging recipe mapped"}</b><span>{intelligence.loggingRecipe?`${intelligence.loggingRecipe.channelGroups.length} channel groups`:"Manual logging setup required"}</span></div><div><b>{intelligence.parameterPack?.title||"No parameter pack mapped"}</b><span>{intelligence.parameterPack?.productionReady?"Doug-approved production pack":"Placeholder until Doug approves his production pack"}</span></div>{intelligence.warnings.slice(0,3).map(warning=><div key={warning}><b>Guardrail</b><span>{warning}</span></div>)}</div><div className={styles.actions}><Link href="/intelligence"><Bot size={14}/>Open Intelligence Center<ChevronRight size={12}/></Link></div></section>
+        <section className={styles.panel}><header><div><span>VEHICLE INTELLIGENCE</span><h2>{intelligence.engine||vehicle.engine||"Engine"} · {intelligence.platform||project.platform||"Platform"}</h2></div><Bot size={18}/></header><div className={styles.compact}><div><b>{nice(intelligence.state)}</b><span>{storedProfile?`Stored profile ${storedProfile}`:`Resolved from ${intelligence.source||"vehicle"} context`}</span></div><div><b>{intelligence.loggingRecipe?.title||"No logging recipe mapped"}</b><span>{intelligence.loggingRecipe?`${intelligence.loggingRecipe.channelGroups.length} channel groups`:"Manual logging setup required"}</span></div><div><b>{intelligence.parameterPack?.title||"No parameter pack mapped"}</b><span>{intelligence.parameterPack?.productionReady?"Doug-approved production pack":"Placeholder until Doug approves his production pack"}</span></div>{(intelligence.warnings||[]).slice(0,3).map(warning=><div key={warning}><b>Guardrail</b><span>{warning}</span></div>)}</div><div className={styles.actions}><Link href="/intelligence"><Bot size={14}/>Open Intelligence Center<ChevronRight size={12}/></Link></div></section>
 
         <section className={styles.panel}><header><div><span>QUICK ACCESS</span><h2>Keep work in context</h2></div><Gauge size={18}/></header><div className={styles.actions}><Link href="/messages"><Mail size={14}/>Customer communications<ChevronRight size={12}/></Link><Link href={`/files/${project.projectNumber}`}><FileKey2 size={14}/>Project files<ChevronRight size={12}/></Link>{project.projectNumber==="SP-1842"&&<Link href={`/log-review/${project.projectNumber}`}><Gauge size={14}/>Deep log review<ChevronRight size={12}/></Link>}</div></section>
 
