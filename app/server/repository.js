@@ -96,6 +96,12 @@ export async function getReadinessData() {
     connectivityError,
     repositoryAdapter: readiness.mode === "supabase" ? "supabase-rest" : "demo-memory",
     schemaMigration: "supabase/migrations/0001_core.sql",
+    schemaMigrations: [
+      "supabase/migrations/0001_core.sql",
+      "supabase/migrations/0002_identity_storage.sql",
+      "supabase/migrations/0003_access_hardening.sql",
+      "supabase/migrations/0004_integration_staging.sql",
+    ],
     syntheticSeed: "supabase/seed/0001_demo.sql",
   };
 }
