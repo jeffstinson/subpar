@@ -9,6 +9,7 @@ const WORKFLOW_PATH = "/workflow/SP-1842";
 const INTAKE_PATH = "/intake/SP-1846";
 const LOG_REVIEW_PATH = "/log-review/SP-1842";
 const REVISION_PATH = "/revision/SP-1842";
+const CLOSEOUT_PATH = "/closeout/SP-1842";
 
 export default function Home() {
   useEffect(() => {
@@ -88,6 +89,7 @@ export default function Home() {
           <a href={PORTAL_PATH}>Customer view</a>
           <a className="logLink" href={LOG_REVIEW_PATH}>Log review</a>
           <a className="revisionLink" href={REVISION_PATH}>Revision</a>
+          <a className="closeoutLink" href={CLOSEOUT_PATH}>Closeout</a>
           <a className="workflowLink" href={WORKFLOW_PATH}>Workflow</a>
           <a className="intakeLink" href={INTAKE_PATH}>New order</a>
         </div>
@@ -114,7 +116,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 10px;
-          min-width: 700px;
+          min-width: 780px;
           padding: 11px 13px;
           border: 1px solid #31513c;
           border-radius: 12px;
@@ -174,6 +176,11 @@ export default function Home() {
           border-color: #4d3b63;
           color: #baa0ec;
         }
+        .demoProjectLauncherActions a.closeoutLink {
+          background: #18261d;
+          border-color: #3a6446;
+          color: #83cf99;
+        }
         .demoProjectLauncherActions a.workflowLink {
           background: #1c5f34;
           border-color: #2d8250;
@@ -201,6 +208,9 @@ export default function Home() {
           .demoProjectLauncherActions a {
             text-align: center;
             padding: 8px 5px;
+          }
+          .demoProjectLauncherActions a:last-child {
+            grid-column:1/-1;
           }
         }
       `}</style>
