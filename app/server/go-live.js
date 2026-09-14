@@ -73,7 +73,7 @@ export function planHistoricalImport({provider,records,months,batchSize}){
   const total=Math.max(0,Math.floor(Number(records)||0));
   const lookbackMonths=Math.min(60,Math.max(1,Math.floor(Number(months)||(source==="wix"?36:24))));
   const defaultBatch=source==="wix"?100:250;
-  const size=Math.min(1000,Math.max(10,Math.floor(Number(batchSize)||defaultBatch));
+  const size=Math.min(1000,Math.max(10,Math.floor(Number(batchSize)||defaultBatch)));
   const batches=total?Math.ceil(total/size):null;
   return {provider:source,importType:source==="wix"?"historical_orders":"historical_threads",records:total||null,lookbackMonths,batchSize:size,batches,mode:"dry-run",mutation:false,dedupe:source==="wix"?["external_source + external_order_id","customer email","existing external_links"]:["Gmail thread id","Gmail message id","customer email","existing external_links"],conflictPolicy:["Never auto-merge two existing customers with different emails","Never overwrite an existing vehicle VIN/chassis conflict","Never duplicate an order/thread already linked to a provider ID","Ambiguous project matches go to manual review instead of guessing"],phases:[
     {step:1,name:"Scan",result:"Count provider records and capture cursor/range only"},
