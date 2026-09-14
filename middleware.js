@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const internalPrefixes=["/project","/workspace","/intake","/intake-queue","/intelligence","/log-lab","/log-review","/reviews","/revision","/delivery","/closeout","/lifecycle","/automations","/security","/persistence","/data-core","/mobile","/files","/integration-lab","/go-live","/messages","/outbound"];
+const internalPrefixes=["/project","/workspace","/intake","/intake-queue","/intelligence","/log-lab","/log-review","/reviews","/revision","/delivery","/closeout","/lifecycle","/activation","/automations","/security","/persistence","/data-core","/mobile","/files","/integration-lab","/go-live","/messages","/outbound"];
 
 function loginRedirect(request,audience){
   const url=request.nextUrl.clone();
