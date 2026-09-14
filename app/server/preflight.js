@@ -72,7 +72,6 @@ export async function probeWixConnection(){
   const readiness=getWixReadReadiness();
   if(!readiness.credentials)return {provider:"wix",status:"skipped",detail:"Wix App ID, secret and installation instance ID are incomplete",latencyMs:0};
   if(process.env.SUBPAR_CONNECTION_TESTS_ENABLED!=="true")return {provider:"wix",status:"skipped",detail:"Connection-test gate is disabled",latencyMs:0};
-  if(process.env.SUBPAR_REAL_DATA_APPROVED!=="true")return {provider:"wix",status:"skipped",detail:"Real-data approval gate is closed",latencyMs:0};
   const start=Date.now();
   try{const token=await probeWixToken();return {provider:"wix",status:token?"pass":"fail",detail:token?"Site-scoped Wix OAuth token issued successfully":"Wix OAuth did not return a token",latencyMs:ms(start),tokenExposed:false,readEnabled:readiness.readEnabled}}
   catch(error){return {provider:"wix",status:"fail",detail:error.message,latencyMs:ms(start),tokenExposed:false,readEnabled:readiness.readEnabled}}
@@ -82,7 +81,6 @@ export async function probeGmailConnection(){
   const integration=getIntegrationReadiness();
   if(!integration.gmail.oauthConfigured)return {provider:"gmail",status:"skipped",detail:"Gmail OAuth credentials are incomplete",latencyMs:0};
   if(process.env.SUBPAR_CONNECTION_TESTS_ENABLED!=="true")return {provider:"gmail",status:"skipped",detail:"Connection-test gate is disabled",latencyMs:0};
-  if(process.env.SUBPAR_REAL_DATA_APPROVED!=="true")return {provider:"gmail",status:"skipped",detail:"Real-data approval gate is closed",latencyMs:0};
   const start=Date.now();
   try{
     const token=await probeGmailToken();
@@ -115,5 +113,5 @@ export async function runPreflight({scopes=["supabase","storage"],testedBy="Doug
   }
   const failed=tests.filter(test=>test.status==="fail");
   const passed=tests.filter(test=>test.status==="pass");
-  return {ok:failed.length===0,tests,summary:{requested:tests.length,passed:passed.length,failed:failed.length,skipped:tests.length-passed.length-failed.length},connectionTestGate:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",realDataApproved:process.env.SUBPAR_REAL_DATA_APPROVED==="true"};
+  return {ok:failed.length===0,tests,summary:{requested:tests.length,passed:passed.length,failed:failed.length,skipped:tests.length-passed.length-failed.length},connectionTestGate:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",realDataApproved:process.env.SUBPAR_REAL_DATA_APPROVED==="true",providerWrites:false};
 }
