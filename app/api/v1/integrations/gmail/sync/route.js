@@ -1,4 +1,5 @@
 import { can, resolvePrincipalFromRequest } from "../../../../../server/access-control";
+import { extractGmailThreadIds } from "../../../../../server/gmail-client";
 import { getIntegrationReadiness, gmailHistory } from "../../../../../server/integrations";
 
 export async function POST(request) {
@@ -20,11 +21,15 @@ export async function POST(request) {
 
     if (!body.startHistoryId) return Response.json({ ok:false, error:"startHistoryId is required for partial sync" }, { status:400 });
     const history = await gmailHistory(body.startHistoryId);
+    const threadIds = history.requiresFullSync ? [] : extractGmailThreadIds(history.history);
     return Response.json({
       ok:true,
       startHistoryId:String(body.startHistoryId),
       ...history,
-      next:history.requiresFullSync ? "full-sync-required" : "fetch-changed-messages-and-threads",
+      changedThreadIds:threadIds,
+      changedThreadCount:threadIds.length,
+      next:history.requiresFullSync ? "full-sync-required" : threadIds.length ? "hydrate-changed-threads" : "no-thread-changes",
+      threadEndpoint:"/api/v1/integrations/gmail/thread",
     }, { headers:{ "Cache-Control":"no-store" } });
   } catch (error) {
     return Response.json({ ok:false, error:error.message }, { status:400, headers:{ "Cache-Control":"no-store" } });
