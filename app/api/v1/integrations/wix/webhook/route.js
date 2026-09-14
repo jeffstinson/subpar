@@ -1,4 +1,5 @@
 import { beginWebhookReceipt, completeWebhookReceipt } from "../../../../../server/integration-ledger";
+import { applyWixOrderPlan } from "../../../../../server/integration-apply";
 import { getIntegrationReadiness, normalizeWixEvent, planWixOrderEvent, sha256, verifyWixWebhookToken } from "../../../../../server/integrations";
 
 export async function POST(request) {
@@ -36,8 +37,37 @@ export async function POST(request) {
       },
     });
 
-    if (started.duplicate) {
-      return Response.json({ ok:true, duplicate:true, externalEventId, status:"already-received" }, { headers:{ "Cache-Control":"no-store" } });
+    const existingStatus = started.receipt?.status || "received";
+    if (started.duplicate && (!readiness.wix.applyEnabled || existingStatus === "applied")) {
+      return Response.json({ ok:true, duplicate:true, externalEventId, status:existingStatus, applied:existingStatus === "applied" }, { headers:{ "Cache-Control":"no-store" } });
+    }
+
+    if (readiness.wix.applyEnabled) {
+      const applied = await applyWixOrderPlan(plan);
+      const completed = await completeWebhookReceipt({
+        integration:"wix",
+        externalEventId,
+        status:"applied",
+        processedResult:{
+          classification:plan.classification,
+          customerId:applied.customer.id,
+          orderId:applied.order.id,
+          intakeRequestId:applied.intake.id,
+          customerCreated:applied.customer.created,
+          projectCreated:false,
+          mutationsApplied:true,
+        },
+      });
+      return Response.json({
+        ok:true,
+        duplicate:started.duplicate,
+        signatureValid:true,
+        externalEventId,
+        plan,
+        applied:true,
+        result:applied,
+        receipt:completed,
+      }, { headers:{ "Cache-Control":"no-store" } });
     }
 
     const completed = await completeWebhookReceipt({
@@ -61,7 +91,7 @@ export async function POST(request) {
       plan,
       receipt:completed,
       applied:false,
-      note:"This phase verifies and plans signed Wix events. Customer/order/project mutations stay disabled until the apply gate is built and explicitly enabled.",
+      note:"Signed Wix event verified and planned. The separate Wix apply gate is still disabled.",
     }, { headers:{ "Cache-Control":"no-store" } });
   } catch (error) {
     if (receiptIdentity) {
