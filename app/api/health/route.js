@@ -1,8 +1,8 @@
-import { getSystemData } from "../../server/repository";
+import { getReadinessData, getSystemData } from "../../server/repository";
 
 export async function GET(){
   try {
-    const system = await getSystemData();
+    const [system,readiness] = await Promise.all([getSystemData(),getReadinessData()]);
     return Response.json({
       ok:true,
       service:"subpar-os",
@@ -11,7 +11,8 @@ export async function GET(){
       mutationMode:system.mutationMode,
       mutationsEnabled:system.mutationsEnabled,
       dataCore:"ready",
-      normalizedCounts:system.counts,
+      persistence:{adapter:readiness.repositoryAdapter,supabaseConfigured:readiness.supabaseConfigured,connectivity:readiness.connectivity,realDataGate:readiness.realDataGate},
+      normalizedCounts:system.counts || null,
       integrations:system.integrations,
       ndaGate:system.ndaGate,
       api:"/api/v1",
