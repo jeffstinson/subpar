@@ -8,6 +8,7 @@ const routeMap = new Map([
   ["Integrations", "/integration-lab"],
   ["Messages", "/messages"],
   ["Message customer", "/messages"],
+  ["New Orders", "/intake-queue"],
 ]);
 
 export default function RouteBridge() {
