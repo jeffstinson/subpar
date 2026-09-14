@@ -8,7 +8,7 @@ export default function LogLabPage(){
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}><ArrowLeft size={15}/>Dashboard</Link>
       <div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>DATALOG INTELLIGENCE</span></div></div>
-      <div className={styles.links}><Link href="/log-review/SP-1842">Alex Log Review <ChevronRight size={13}/></Link><Link href="/intelligence">Vehicle Intelligence <ChevronRight size={13}/></Link></div>
+      <div className={styles.links}><Link href="/reviews">Review Cockpit <ChevronRight size={13}/></Link><Link href="/intelligence">Vehicle Intelligence <ChevronRight size={13}/></Link></div>
     </header>
 
     <section className={styles.hero}>
