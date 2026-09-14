@@ -12,6 +12,7 @@ export const GO_LIVE_MIGRATIONS = [
   { id:"0004", file:"0004_integration_staging.sql", purpose:"Wix/Gmail receipt ledger + outbound queue" },
   { id:"0005", file:"0005_go_live_imports.sql", purpose:"Resumable historical import batches + conflict ledger" },
   { id:"0006", file:"0006_intake_activation.sql", purpose:"Paid-order intake staging + provider cutover checkpoints" },
+  { id:"0007", file:"0007_provisioning_state.sql", purpose:"Migration ledger + non-secret connection tests + onboarding checkpoints" },
 ];
 
 export const GO_LIVE_ENV_GROUPS = [
@@ -29,7 +30,7 @@ export const GO_LIVE_ENV_GROUPS = [
   },
   {
     id:"gates", label:"Activation gates", required:true,
-    vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_IMPORT_APPLY_ENABLED","SUBPAR_WIX_READ_ENABLED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"],
+    vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_CONNECTION_TESTS_ENABLED","SUBPAR_IMPORT_APPLY_ENABLED","SUBPAR_WIX_READ_ENABLED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"],
   },
 ];
 
@@ -54,7 +55,7 @@ export function getGoLiveReadiness() {
     { id:"roles", label:"Role/portal permission model", ready:access.defaultDeny && access.customerPortalIdentity === "modeled", detail:"Owner/tuner/staff/customer permissions default deny." },
     { id:"wix-read-creds", label:"Wix app installation credentials", ready:wixRead.credentials, detail:wixRead.credentials?"App ID, secret and Doug-site instance ID detected.":"Wix App ID + secret + installation instance ID are required for historical order reads." },
     { id:"wix-key", label:"Wix signed webhook key", ready:integrations.wix.publicKeyConfigured, detail:integrations.wix.publicKeyConfigured?"Signed Wix ingress can be verified.":"Dedicated Wix webhook public key required." },
-    { id:"gmail-oauth", label:"Gmail OAuth", ready:integrations.gmail.oauthConfigured, detail:integrations.gmail.oauthConfigured?"Gmail read-sync credentials detected.":"Dedicated Google OAuth client + refresh token required." },
+    { id:"gmail-oauth", label:"Gmail OAuth", ready:integrations.gmail.oauthConfigured, detail:integrations.gmail.oauthConfigured?"Gmail OAuth credentials detected.":"Dedicated Google OAuth client + refresh token required." },
     { id:"gmail-watch", label:"Gmail watch / PubSub", ready:integrations.gmail.watchConfigured, detail:integrations.gmail.watchConfigured?"Mailbox push cursor path configured.":"Pub/Sub topic required for push-based Gmail sync." },
     { id:"real-data", label:"Real-data approval gate", ready:integrations.realDataApproved, detail:integrations.realDataApproved?"Explicit live-data approval is ON.":"Intentionally OFF until Doug is ready and NDA/access review is complete." },
   ];
@@ -76,14 +77,17 @@ export function getGoLiveReadiness() {
     migrations:GO_LIVE_MIGRATIONS,
     integrationReadiness:integrations,
     wixReadReadiness:wixRead,
+    connectionTestsEnabled:process.env.SUBPAR_CONNECTION_TESTS_ENABLED === "true",
     importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED === "true",
     recommendedSequence:[
       "Provision dedicated Subpar Supabase project",
-      "Run migrations 0001 through 0006 in order",
+      "Run migrations 0001 through 0007 in order",
+      "Run Supabase schema + private bucket preflight",
       "Seed synthetic records and verify dashboard parity",
       "Create Doug owner + synthetic customer identities",
       "Verify login, route boundaries and private files",
       "Configure Wix + Gmail credentials with all read/apply/send gates OFF",
+      "Enable connection tests and prove Wix/Gmail OAuth without ingesting data",
       "Enable Wix historical read and run dry-run backfill scans",
       "Run Gmail historical dry-run and resolve customer/project conflicts",
       "Enable historical import apply and reconcile provider counts",
