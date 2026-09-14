@@ -33,7 +33,9 @@ create index if not exists idx_intake_access_active on intake_access_tokens(inta
 alter table intake_access_tokens enable row level security;
 -- No authenticated-browser policies on token records. Token verification is server/service-role only.
 
-create sequence if not exists subpar_project_number_seq start with 2000 increment by 1;
+-- Live project numbers created by the new activation engine use a reserved high range so
+-- imported historical SP-#### records cannot collide during onboarding.
+create sequence if not exists subpar_project_number_seq start with 10000 increment by 1;
 
 create or replace function subpar_next_project_number()
 returns text
@@ -122,5 +124,5 @@ revoke all on function subpar_activate_intake(uuid,text) from anon;
 revoke all on function subpar_activate_intake(uuid,text) from authenticated;
 
 comment on table intake_access_tokens is 'Server-only hashes for expiring customer intake magic links. Raw tokens are never persisted.';
-comment on function subpar_next_project_number() is 'Service-role project-number allocator used only after reviewed intake activation.';
+comment on function subpar_next_project_number() is 'Service-role project-number allocator using a reserved post-import range.';
 comment on function subpar_activate_intake(uuid,text) is 'Atomic service-role conversion of an approved paid-order intake into vehicle, tune project, requirements and audit history.';
