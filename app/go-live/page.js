@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, ChevronRight, Database, FileCheck2, KeyRound, LockKeyhole, Mail, Rocket, ShieldCheck, ShoppingBag, TriangleAlert } from "lucide-react";
 import { getGoLiveReadiness, goLiveValidationSuite, listImportBatches } from "../server/go-live";
 import GoLiveClient from "./go-live-client";
+import PreflightClient from "./preflight-client";
 import styles from "./go-live.module.css";
 
 function Gate({ready}){return <span className={ready?styles.ready:styles.locked}>{ready?<CheckCircle2 size={12}/>:<LockKeyhole size={12}/>} {ready?"READY":"WAITING"}</span>}
@@ -19,15 +20,15 @@ export default async function GoLivePage(){
     </header>
 
     <section className={styles.hero}>
-      <div><span className={styles.eyebrow}>PHASE 6 • DEPLOYMENT + CUTOVER READINESS</span><h1>Make Doug’s eventual setup boring.</h1><p>Everything needed to move from synthetic preview to a real Subpar deployment is organized here: isolated infrastructure, migrations, identities, private files, Wix/Gmail configuration, historical imports, validation tests and the exact order to flip live gates.</p><div className={styles.heroMeta}><span><ShieldCheck size={13}/>Default deny</span><span><Database size={13}/>6 ordered migrations</span><span><FileCheck2 size={13}/>Replay-safe imports</span></div></div>
+      <div><span className={styles.eyebrow}>PHASE 7 • PROVISIONING + CUTOVER CONTROL</span><h1>Make Doug’s eventual setup boring.</h1><p>Everything needed to move from synthetic preview to a real Subpar deployment is organized here: isolated infrastructure, migrations, connection preflight, identities, private files, Wix/Gmail configuration, historical imports, validation tests and the exact order to flip live gates.</p><div className={styles.heroMeta}><span><ShieldCheck size={13}/>Default deny</span><span><Database size={13}/>{readiness.migrations.length} ordered migrations</span><span><FileCheck2 size={13}/>Replay-safe imports</span></div></div>
       <div className={styles.score}><span>PRE-REQUISITES</span><b>{readiness.prerequisitesReady?"READY":"STAGED"}</b><small>{readiness.liveReady?"live gate approved":"real-data gate remains closed"}</small></div>
     </section>
 
     <section className={styles.statusGrid}>
       <article><Database size={19}/><div><span>SUPABASE</span><h2>Database + storage</h2><p>Dedicated Subpar project, service role and private-file secret.</p></div><Gate ready={readiness.checks.find(x=>x.id==="supabase")?.ready&&readiness.checks.find(x=>x.id==="file-secret")?.ready}/></article>
       <article><KeyRound size={19}/><div><span>IDENTITY</span><h2>Team + portal auth</h2><p>Doug/staff roles and customer-scoped sessions.</p></div><Gate ready={readiness.checks.find(x=>x.id==="public-auth")?.ready}/></article>
-      <article><ShoppingBag size={19}/><div><span>WIX</span><h2>Orders + webhook</h2><p>Signed ingress first; historical apply before live mutation.</p></div><Gate ready={integration.wix.publicKeyConfigured}/></article>
-      <article><Mail size={19}/><div><span>GMAIL</span><h2>Threads + mailbox watch</h2><p>Historical read sync before outbound customer email.</p></div><Gate ready={integration.gmail.oauthConfigured&&integration.gmail.watchConfigured}/></article>
+      <article><ShoppingBag size={19}/><div><span>WIX</span><h2>Orders + webhook</h2><p>OAuth read, signed ingress and database apply stay independently gated.</p></div><Gate ready={readiness.wixReadReadiness.credentials&&integration.wix.publicKeyConfigured}/></article>
+      <article><Mail size={19}/><div><span>GMAIL</span><h2>Threads + mailbox watch</h2><p>OAuth test, historical read sync and outbound send stay separate.</p></div><Gate ready={integration.gmail.oauthConfigured&&integration.gmail.watchConfigured}/></article>
     </section>
 
     <section className={styles.grid}>
@@ -41,6 +42,7 @@ export default async function GoLivePage(){
       </aside>
     </section>
 
+    <PreflightClient connectionTestsEnabled={readiness.connectionTestsEnabled} realDataApproved={integration.realDataApproved}/>
     <GoLiveClient/>
 
     <section className={styles.grid}>
