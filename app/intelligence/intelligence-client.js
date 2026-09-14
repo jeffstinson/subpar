@@ -5,7 +5,7 @@ import { AlertTriangle, Bot, CheckCircle2, ClipboardList, FileText, Gauge, Refre
 import { resolveVehicleIntelligence } from "../lib/vehicle-intelligence";
 import styles from "./intelligence.module.css";
 
-export default function IntelligenceClient({vehicles,source="demo"}){
+export default function IntelligenceClient({vehicles,source="demo",validation=null}){
   const firstKey=vehicles.find(v=>v.key==="g20-m340i")?.key||vehicles[0]?.key||"";
   const [vehicleKey,setVehicleKey]=useState(firstKey);
   const selected=useMemo(()=>vehicles.find(v=>v.key===vehicleKey)||vehicles[0],[vehicleKey,vehicles]);
@@ -55,6 +55,11 @@ export default function IntelligenceClient({vehicles,source="demo"}){
         <div><span>RESOLUTION · {String(resolution.source||source).toUpperCase()}</span><h2>{ready?"Workflow ready":"Manual review required"}</h2><p>{resolution.vehicle?`${resolution.vehicle.make} ${resolution.vehicle.label} resolved from ${(resolution.chassis||[]).join("/")}.`:"No curated chassis match found."}</p></div>
         <div className={styles.statusBadge}>{ready?<CheckCircle2 size={18}/>:<AlertTriangle size={18}/>}<b>{resolution.engine||"ENGINE?"} · {resolution.platform||"PLATFORM?"}</b><small>{resolution.profileKey||resolution.confidence}</small></div>
       </section>
+
+      {validation&&<section className={styles.panel}>
+        <div className={styles.sectionHead}><div><span>REGRESSION VALIDATION</span><h2>{validation.pass?"Representative workflows passing":"Workflow mismatch detected"}</h2></div>{validation.pass?<CheckCircle2 size={18}/>:<AlertTriangle size={18}/>}</div>
+        <div className={styles.reqList}>{validation.results.map((test,index)=><div key={test.id}><i>{test.pass?"✓":index+1}</i><div><b>{test.label}</b><p>{test.pass?`${test.recipeKey} · ${(test.requirements||[]).join(" · ")}`:`${test.error||`Missing: ${(test.missingRequirements||[]).join(", ")}`}`}</p></div><em>{test.pass?"PASS":"REVIEW"}</em></div>)}</div>
+      </section>}
 
       <section className={styles.grid2}>
         <article className={styles.panel}>
