@@ -18,6 +18,7 @@ export const GO_LIVE_MIGRATIONS = [
   { id:"0010", file:"0010_vehicle_platform_intelligence.sql", purpose:"BMW/Supra chassis catalog + engine/platform workflow intelligence" },
   { id:"0011", file:"0011_log_intelligence.sql", purpose:"Versioned datalog channel mapping + parser confidence + review metadata" },
   { id:"0012", file:"0012_log_review_workflow.sql", purpose:"Persistent tuner review sessions + annotations + external log references" },
+  { id:"0013", file:"0013_revision_delivery_loop.sql", purpose:"Revision QA + private artifact release + customer acknowledgement + next-log loop" },
 ];
 
 export const GO_LIVE_ENV_GROUPS = [
@@ -53,7 +54,7 @@ export function getGoLiveReadiness(){
   const liveReady=prerequisitesReady&&integrations.realDataApproved;
   return {mode:getDataMode(),prerequisitesReady,liveReady,checks,envGroups,migrations:GO_LIVE_MIGRATIONS,integrationReadiness:integrations,wixReadReadiness:wixRead,connectionTestsEnabled:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED==="true",recommendedSequence:[
     "Provision dedicated Subpar Supabase project",
-    "Run migrations 0001 through 0012 in order",
+    "Run migrations 0001 through 0013 in order",
     "Run Supabase schema + private bucket preflight",
     "Seed synthetic records and verify dashboard parity",
     "Create Doug owner + synthetic customer identities",
@@ -62,6 +63,7 @@ export function getGoLiveReadiness(){
     "Verify customer intake link → intelligence resolution → compatibility review → project activation",
     "Validate MHD parser channel aliases + review heuristics against Doug-approved sample logs",
     "Validate review cockpit comparison, annotations, decisions and Datazap reference behavior",
+    "Validate Rev N+1 private file → QA hash/gates → approval → portal delivery → customer install acknowledgement → next-log return",
     "Configure Wix + Gmail credentials with all read/apply/send gates OFF",
     "Enable connection tests and prove Wix/Gmail OAuth without ingesting data",
     "Enable Wix historical read and run dry-run backfill scans",
@@ -102,6 +104,7 @@ export function goLiveValidationSuite(){return [
   {id:"log-intelligence",name:"Datalog intelligence",passCondition:"Doug-approved sample logs map required channels with expected confidence and review flags before persistent analysis is enabled"},
   {id:"log-review",name:"Datalog review workflow",passCondition:"Current vs previous pull deltas, tuner annotations and explicit create-revision/re-log/complete/hold decisions persist and hand off the project correctly"},
   {id:"datazap-reference",name:"Datazap reference boundary",passCondition:"Valid datazap.me URLs link to a project as references without being treated as parsed numeric evidence until a verified source file exists"},
+  {id:"revision-delivery",name:"Revision delivery loop",passCondition:"Private tune artifact stays internal through QA/approval, hashes cleanly, becomes customer-visible only at delivery, records customer acknowledgement/install and routes the next CSV back to parsed review"},
   {id:"intake-link",name:"Customer intake link",passCondition:"Raw token is shown once, only its hash persists, and expiration/revocation is enforced"},
   {id:"intake-activate",name:"Intake activation",passCondition:"Approved intake creates one vehicle + project + intelligence-seeded requirements and replay returns the same project"},
   {id:"wix-oauth",name:"Wix read access",passCondition:"Site-scoped OAuth token succeeds and paid-order search returns a deterministic cursor"},
