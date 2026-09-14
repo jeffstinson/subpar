@@ -1,5 +1,6 @@
 import { beginWebhookReceipt, completeWebhookReceipt } from "../../../../../server/integration-ledger";
 import { applyWixOrderPlan } from "../../../../../server/integration-apply";
+import { stageIntakeInvitation } from "../../../../../server/intake-handoff";
 import { getIntegrationReadiness, normalizeWixEvent, planWixOrderEvent, sha256, verifyWixWebhookToken } from "../../../../../server/integrations";
 
 export async function POST(request) {
@@ -44,6 +45,12 @@ export async function POST(request) {
 
     if (readiness.wix.applyEnabled) {
       const applied = await applyWixOrderPlan(plan);
+      let handoff = null;
+      try {
+        handoff = await stageIntakeInvitation(applied.intake.id,{createdBy:"Wix paid-order workflow"});
+      } catch (error) {
+        handoff = { staged:false, error:error.message, requiresManualReview:true };
+      }
       const completed = await completeWebhookReceipt({
         integration:"wix",
         externalEventId,
@@ -55,6 +62,9 @@ export async function POST(request) {
           intakeRequestId:applied.intake.id,
           customerCreated:applied.customer.created,
           projectCreated:false,
+          intakeInviteDraftId:handoff?.id || null,
+          intakeInviteStaged:Boolean(handoff?.id || handoff?.replayed),
+          intakeInviteError:handoff?.error || null,
           mutationsApplied:true,
         },
       });
@@ -66,7 +76,9 @@ export async function POST(request) {
         plan,
         applied:true,
         result:applied,
+        handoff,
         receipt:completed,
+        note:"Paid order applied to customer/order/intake. The customer intake invitation is staged as an approval-required Gmail draft; nothing is provider-sent automatically.",
       }, { headers:{ "Cache-Control":"no-store" } });
     }
 
