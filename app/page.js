@@ -6,10 +6,11 @@ import RootHome from "../page";
 const PROJECT_PATH = "/project/SP-1842";
 const PORTAL_PATH = "/portal/SP-1842";
 const WORKFLOW_PATH = "/workflow/SP-1842";
+const INTAKE_PATH = "/intake/SP-1846";
 
 export default function Home() {
   useEffect(() => {
-    const wireProjectLinks = () => {
+    const wireDemoLinks = () => {
       const selectors = [
         "tbody tr",
         ".customerCard",
@@ -17,46 +18,53 @@ export default function Home() {
         ".logRow",
         ".thread",
         ".activityRow",
+        ".workCard",
       ];
 
       document.querySelectorAll(selectors.join(",")).forEach((el) => {
-        if (!el.textContent?.includes("Alex Rivera")) return;
-        if (el.dataset.projectLinked === "true") return;
+        if (el.dataset.demoLinked === "true") return;
 
-        el.dataset.projectLinked = "true";
+        const isAlex = el.textContent?.includes("Alex Rivera");
+        const isCarlos = el.textContent?.includes("Carlos Mendez");
+        if (!isAlex && !isCarlos) return;
+
+        const path = isAlex ? PROJECT_PATH : INTAKE_PATH;
+        const label = isAlex ? "Open Alex Rivera project SP-1842" : "Open Carlos Mendez intake SP-1846";
+
+        el.dataset.demoLinked = "true";
         el.classList.add("demoProjectLink");
         el.setAttribute("role", "link");
         el.setAttribute("tabindex", "0");
-        el.setAttribute("aria-label", "Open Alex Rivera project SP-1842");
+        el.setAttribute("aria-label", label);
 
-        const openProject = (event) => {
+        const openDemo = (event) => {
           if (event.target?.closest("a,button,input,select,textarea")) return;
-          window.location.href = PROJECT_PATH;
+          window.location.href = path;
         };
 
-        el.addEventListener("click", openProject);
+        el.addEventListener("click", openDemo);
         el.addEventListener("keydown", (event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            window.location.href = PROJECT_PATH;
+            window.location.href = path;
           }
         });
 
         const existingAction = el.querySelector(".miniBtn, .wideBtn, .btn.secondary");
-        if (existingAction && !existingAction.dataset.projectLinked) {
-          existingAction.dataset.projectLinked = "true";
-          existingAction.title = "Open Alex Rivera project";
+        if (existingAction && !existingAction.dataset.demoLinked) {
+          existingAction.dataset.demoLinked = "true";
+          existingAction.title = label;
           existingAction.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            window.location.href = PROJECT_PATH;
+            window.location.href = path;
           });
         }
       });
     };
 
-    wireProjectLinks();
-    const observer = new MutationObserver(wireProjectLinks);
+    wireDemoLinks();
+    const observer = new MutationObserver(wireDemoLinks);
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => observer.disconnect();
@@ -68,13 +76,14 @@ export default function Home() {
       <div className="demoProjectLauncher">
         <span className="demoProjectLauncherDot" />
         <span className="demoProjectLauncherCopy">
-          <small>DEMO PROJECT</small>
-          <strong>Alex Rivera · M340i · MHD Rev 4</strong>
+          <small>WORKING DEMOS</small>
+          <strong>Subpar OS · end-to-end tune workflow</strong>
         </span>
         <div className="demoProjectLauncherActions">
           <a href={PROJECT_PATH}>Tuner view</a>
           <a href={PORTAL_PATH}>Customer view</a>
           <a className="workflowLink" href={WORKFLOW_PATH}>Workflow</a>
+          <a className="intakeLink" href={INTAKE_PATH}>New order</a>
         </div>
       </div>
       <style jsx global>{`
@@ -99,7 +108,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 10px;
-          min-width: 465px;
+          min-width: 550px;
           padding: 11px 13px;
           border: 1px solid #31513c;
           border-radius: 12px;
@@ -154,6 +163,11 @@ export default function Home() {
           border-color: #2d8250;
           color: #fff;
         }
+        .demoProjectLauncherActions a.intakeLink {
+          background: #282013;
+          border-color: #5b4722;
+          color: #e5be68;
+        }
         @media (max-width: 760px) {
           .demoProjectLauncher {
             left: 12px;
@@ -166,7 +180,7 @@ export default function Home() {
           .demoProjectLauncherActions {
             width: 100%;
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
           }
           .demoProjectLauncherActions a {
             text-align: center;
