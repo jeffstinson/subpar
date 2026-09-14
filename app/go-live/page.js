@@ -16,12 +16,12 @@ export default async function GoLivePage(){
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}><ArrowLeft size={15}/>Dashboard</Link>
       <div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>GO LIVE CENTER</span></div></div>
-      <div className={styles.toplinks}><Link href="/integration-lab">Integration Lab <ChevronRight size={13}/></Link><a href="/api/v1/go-live/readiness">Readiness API <ChevronRight size={13}/></a></div>
+      <div className={styles.toplinks}><Link href="/activation">Activation Audit <ChevronRight size={13}/></Link><Link href="/integration-lab">Integration Lab <ChevronRight size={13}/></Link><a href="/api/v1/go-live/readiness">Readiness API <ChevronRight size={13}/></a></div>
     </header>
 
     <section className={styles.hero}>
-      <div><span className={styles.eyebrow}>PHASE 7 • PROVISIONING + CUTOVER CONTROL</span><h1>Make Doug’s eventual setup boring.</h1><p>Everything needed to move from synthetic preview to a real Subpar deployment is organized here: isolated infrastructure, migrations, connection preflight, identities, private files, Wix/Gmail configuration, historical imports, validation tests and the exact order to flip live gates.</p><div className={styles.heroMeta}><span><ShieldCheck size={13}/>Default deny</span><span><Database size={13}/>{readiness.migrations.length} ordered migrations</span><span><FileCheck2 size={13}/>Replay-safe imports</span></div></div>
-      <div className={styles.score}><span>PRE-REQUISITES</span><b>{readiness.prerequisitesReady?"READY":"STAGED"}</b><small>{readiness.liveReady?"live gate approved":"real-data gate remains closed"}</small></div>
+      <div><span className={styles.eyebrow}>PHASE 8 • ACTIVATION HARDENING + CUTOVER CONTROL</span><h1>Make Doug’s eventual setup boring.</h1><p>Everything needed to move from synthetic preview to a real Subpar deployment is organized here: isolated infrastructure, migrations, identities, private files, provider preflight, historical imports and the exact order to flip live gates. The Production Activation Center independently audits the result before real customer data is allowed through.</p><div className={styles.heroMeta}><span><ShieldCheck size={13}/>Default deny</span><span><Database size={13}/>{readiness.migrations.length} ordered migrations</span><span><FileCheck2 size={13}/>Integrity-audited cutover</span></div></div>
+      <div className={styles.score}><span>PRE-REQUISITES</span><b>{readiness.prerequisitesReady?"READY":"STAGED"}</b><small>{readiness.liveReady?"live gate approved":"real-data gate remains closed"}</small><Link href="/activation">Open activation audit <ChevronRight size={12}/></Link></div>
     </section>
 
     <section className={styles.statusGrid}>
@@ -58,7 +58,7 @@ export default async function GoLivePage(){
     </section>
 
     <section className={styles.sequence}>
-      <div><span className={styles.eyebrow}>ACTIVATION ORDER</span><h2>No big-bang switch.</h2><p>Each external capability gets turned on only after the layer beneath it has already been proven. That makes onboarding repeatable and rollback-friendly.</p></div>
+      <div><span className={styles.eyebrow}>ACTIVATION ORDER</span><h2>No big-bang switch.</h2><p>Each external capability gets turned on only after the layer beneath it has already been proven. The final production checkpoint is guarded by a zero-blocker activation audit.</p><Link href="/activation">Run Production Activation Audit <ChevronRight size={13}/></Link></div>
       <div className={styles.sequenceList}>{readiness.recommendedSequence.map((step,index)=><div key={step}><i>{index+1}</i><b>{step}</b></div>)}</div>
     </section>
   </main>;
