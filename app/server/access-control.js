@@ -21,6 +21,8 @@ export const PERMISSIONS = {
   "file.customer.read": ["owner", "tuner", "staff", "customer"],
   "file.customer.write": ["owner", "tuner", "customer"],
   "message.send": ["owner", "tuner", "staff"],
+  "message.approve": ["owner", "tuner"],
+  "message.provider_send": ["owner", "tuner"],
   "automation.manage": ["owner", "tuner"],
   "integration.manage": ["owner"],
   "user.manage": ["owner"],
