@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowLeft, CheckCircle2, ChevronRight, Database, Gauge, Image as ImageIcon,
-  KeyRound, Layers3, Route, ShieldCheck, Smartphone, TriangleAlert, Wrench
+  KeyRound, Layers3, Radio, Route, ShieldCheck, Smartphone, TriangleAlert, Wrench
 } from "lucide-react";
 import styles from "./audit.module.css";
 
@@ -37,6 +37,11 @@ const sections = [
     items: ["Owner / tuner / staff roles", "Customer-scoped portal identity", "Verified protected routes", "Private File Manager + signed storage"],
   },
   {
+    title: "Integration staging", icon: Radio, status: "FOUNDATION", tone: "pass", score: "88%",
+    body: "Wix and Gmail now have a dry-run ingestion contract with provider normalization, customer/project matching, receipt idempotency and explicit apply/send gates.",
+    items: ["Signed Wix JWT verifier", "Retry-safe webhook ledger", "Gmail history/thread model", "Outbound draft-before-send boundary"],
+  },
+  {
     title: "Asset control", icon: ImageIcon, status: "FOLLOW-UP", tone: "warn", score: "80%",
     body: "The logo is locally controlled. Vehicle photography still relies on externally hosted stock imagery and should be curated before final launch.",
     items: ["Curate licensed final vehicle set", "Move hero/garage images under app control", "Adopt next/image", "Add image fallback strategy"],
@@ -47,9 +52,9 @@ const sections = [
     items: ["Convert queue/garage/messages to routes", "Read dashboard directly from repository/API", "Reduce root client bundle", "Add automated tests"],
   },
   {
-    title: "Live integrations & production data", icon: ShieldCheck, status: "GATED", tone: "gated", score: "62%",
-    body: "The safety architecture is in place, but real Supabase persistence, Wix and Gmail remain intentionally disabled until the isolated project is provisioned and synthetic auth/storage tests pass.",
-    items: ["Provision isolated Supabase project", "Create Doug + customer test identities", "Validate storage against real private buckets", "Wix/Gmail only after access tests"],
+    title: "Live integrations & production data", icon: ShieldCheck, status: "GATED", tone: "gated", score: "68%",
+    body: "The Wix/Gmail integration contract exists, but real persistence, real provider payloads and outbound customer email remain intentionally locked until the isolated Supabase stack and synthetic identity/storage tests pass.",
+    items: ["Provision isolated Supabase project", "Run migration 0004", "Enable signed Wix ingress before apply", "Gmail read sync before outbound send"],
   },
 ];
 
@@ -58,16 +63,16 @@ export default function AuditPage() {
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}><ArrowLeft size={15}/> Dashboard</Link>
       <div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>PRODUCT AUDIT</span></div></div>
-      <div style={{display:"flex",gap:8}}><Link className={styles.health} href="/access">Access <ChevronRight size={13}/></Link><Link className={styles.health} href="/security">Security <ChevronRight size={13}/></Link><Link className={styles.health} href="/persistence">Persistence <ChevronRight size={13}/></Link><a className={styles.health} href="/api/health">Health <ChevronRight size={13}/></a></div>
+      <div style={{display:"flex",gap:8}}><Link className={styles.health} href="/integration-lab">Integration Lab <ChevronRight size={13}/></Link><Link className={styles.health} href="/access">Access <ChevronRight size={13}/></Link><Link className={styles.health} href="/security">Security <ChevronRight size={13}/></Link><a className={styles.health} href="/api/health">Health <ChevronRight size={13}/></a></div>
     </header>
 
     <section className={styles.hero}>
-      <div><span className={styles.eyebrow}>FULL PRODUCT AUDIT • 2026-09-14</span><h1>Preview-grade product. Session-safe production foundation.</h1><p>The product is cohesive enough for Doug to evaluate as a real tuning operating system. Persistence, role-based identity, verified route boundaries, session refresh and private file delivery now sit behind the workflow before any real customer data is introduced.</p></div>
-      <div className={styles.score}><span>BUILD READINESS</span><b>97</b><small>/ 100 preview</small></div>
+      <div><span className={styles.eyebrow}>FULL PRODUCT AUDIT • 2026-09-14</span><h1>Preview-grade product. Integration-safe production foundation.</h1><p>The product is cohesive enough for Doug to evaluate as a real tuning operating system. Persistence, role-based identity, verified route boundaries, private files, Wix event planning and Gmail conversation staging now sit behind the workflow before any real customer data is introduced.</p></div>
+      <div className={styles.score}><span>BUILD READINESS</span><b>98</b><small>/ 100 preview</small></div>
     </section>
 
     <section className={styles.summary}>
-      <div><CheckCircle2 size={18}/><span><b>6</b><small>Pass / foundation areas</small></span></div>
+      <div><CheckCircle2 size={18}/><span><b>7</b><small>Pass / foundation areas</small></span></div>
       <div className={styles.warn}><TriangleAlert size={18}/><span><b>2</b><small>Follow-up areas</small></span></div>
       <div className={styles.gated}><ShieldCheck size={18}/><span><b>1</b><small>Live-data gate</small></span></div>
     </section>
@@ -82,8 +87,8 @@ export default function AuditPage() {
     })}</section>
 
     <section className={styles.next}>
-      <div><span className={styles.eyebrow}>NEXT EXTERNAL GATE</span><h2>Provision Supabase and prove the complete stack with synthetic users.</h2><p>The application-side work for persistence, sessions, permissions and private files is now in place. The next external step is attaching the dedicated Subpar Supabase project, running migrations/seed and testing Doug/Alex-style accounts against the same live private database and storage stack before Wix or Gmail are connected.</p></div>
-      <div className={styles.nextSteps}>{["Create isolated Supabase project","Run migrations 0001–0003","Seed synthetic records","Create Doug owner + Alex portal identities","Enable auth in preview","Verify database + private storage parity"].map((step,index) => <div key={step}><span>{index+1}</span><b>{step}</b></div>)}</div>
+      <div><span className={styles.eyebrow}>NEXT EXTERNAL GATE</span><h2>Provision Supabase, then light up integrations one direction at a time.</h2><p>The application-side work for persistence, sessions, private files and integration staging is now in place. The safe cutover order is database parity first, signed Wix ingress second, Wix apply third, Gmail read sync fourth and outbound Gmail last.</p></div>
+      <div className={styles.nextSteps}>{["Create isolated Supabase project","Run migrations 0001–0004","Seed synthetic records + identities","Verify private storage parity","Enable signed Wix ingress only","Enable Wix apply after replay tests","Enable Gmail read sync before send"].map((step,index) => <div key={step}><span>{index+1}</span><b>{step}</b></div>)}</div>
     </section>
   </main>;
 }
