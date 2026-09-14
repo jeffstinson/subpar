@@ -123,6 +123,18 @@ revoke all on function subpar_activate_intake(uuid,text) from public;
 revoke all on function subpar_activate_intake(uuid,text) from anon;
 revoke all on function subpar_activate_intake(uuid,text) from authenticated;
 
+insert into schema_migrations(version,name)
+values ('0008','customer_intake_activation')
+on conflict(version) do nothing;
+
+insert into setup_checkpoints(checkpoint_key,status,detail)
+values ('customer_intake_activation','pending','Prove secure intake token, customer submission, compatibility review and replay-safe project activation.')
+on conflict(checkpoint_key) do nothing;
+
+update setup_checkpoints
+set detail='Migrations 0001–0008 define the current Subpar schema.',updated_at=now()
+where checkpoint_key='database_schema';
+
 comment on table intake_access_tokens is 'Server-only hashes for expiring customer intake magic links. Raw tokens are never persisted.';
 comment on function subpar_next_project_number() is 'Service-role project-number allocator using a reserved post-import range.';
 comment on function subpar_activate_intake(uuid,text) is 'Atomic service-role conversion of an approved paid-order intake into vehicle, tune project, requirements and audit history.';
