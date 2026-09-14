@@ -1,5 +1,6 @@
 import { can, resolvePrincipalFromRequest } from "../../../server/access-control";
 import { getVehicleIntelligenceCatalogServer, resolveVehicleIntelligenceServer } from "../../../server/intelligence-store";
+import { validateVehicleIntelligence } from "../../../server/intelligence-validation";
 
 async function principalFor(request, bodyPrincipal = null) {
   return resolvePrincipalFromRequest(request, { demoFallback: bodyPrincipal || "doug" });
@@ -10,8 +11,8 @@ export async function GET(request) {
     const principal = await principalFor(request);
     if (!principal) return Response.json({ ok:false, error:"Authentication required" }, { status:401 });
     if (principal.type !== "internal" || !can(principal, "dashboard.read")) return Response.json({ ok:false, error:"Internal access denied" }, { status:403 });
-    const catalog = await getVehicleIntelligenceCatalogServer();
-    return Response.json({ ok:true, ...catalog }, { headers:{ "Cache-Control":"no-store" } });
+    const [catalog,validation] = await Promise.all([getVehicleIntelligenceCatalogServer(), validateVehicleIntelligence()]);
+    return Response.json({ ok:true, ...catalog, validation }, { headers:{ "Cache-Control":"no-store" } });
   } catch (error) {
     return Response.json({ ok:false, error:error.message }, { status:400, headers:{ "Cache-Control":"no-store" } });
   }
