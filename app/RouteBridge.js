@@ -10,6 +10,7 @@ const routeMap = new Map([
   ["Message customer", "/messages"],
   ["New Orders", "/intake-queue"],
   ["Datalog Reviews", "/reviews"],
+  ["Tune Revisions", "/delivery/SP-1842"],
   ["Vehicle Intelligence", "/intelligence"],
 ]);
 
