@@ -20,8 +20,7 @@ create table if not exists external_links (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(integration, external_type, external_id),
-  unique(integration, local_type, local_id, external_type)
+  unique(integration, external_type, external_id)
 );
 
 create table if not exists outbound_actions (
@@ -69,6 +68,6 @@ on outbound_actions for select
 to authenticated
 using (subpar_is_internal());
 
-comment on table external_links is 'Idempotent mapping between Wix/Gmail provider IDs and Subpar OS records. Writes are server-brokered.';
+comment on table external_links is 'Idempotent mapping between provider IDs and Subpar OS records. Multiple provider identities may intentionally converge on one local record; writes are server-brokered.';
 comment on table outbound_actions is 'Server-brokered outbound integration queue. Draft/approval/send state is auditable and idempotent.';
 comment on column webhook_receipts.payload_summary is 'Redacted, non-raw summary used for operations/audit without retaining the full provider payload.';
