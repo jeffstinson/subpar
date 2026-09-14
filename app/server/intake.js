@@ -30,7 +30,9 @@ export function evaluateVehicleIntake(input={}){
 function assertLiveIntakeWrite(){
   if(getDataMode()!=="supabase")throw new Error("Persistent intake writes require SUBPAR_DATA_MODE=supabase");
   if(!mutationsEnabled())throw new Error("Persistent intake writes require SUBPAR_MUTATIONS_ENABLED=true");
-  if(!getIntegrationReadiness().realDataApproved)throw new Error("Real-data approval gate is closed");
+  const realApproved=getIntegrationReadiness().realDataApproved;
+  const syntheticAllowed=process.env.SUBPAR_ALLOW_SYNTHETIC_SEED==="true";
+  if(!realApproved&&!syntheticAllowed)throw new Error("Real-data approval gate is closed and synthetic validation is not enabled");
   return getSupabaseServerClient();
 }
 
