@@ -14,6 +14,9 @@ const routeMap = new Map([
   ["Closed Tunes", "/lifecycle"],
   ["Tune Lifecycle", "/lifecycle"],
   ["Vehicle Intelligence", "/intelligence"],
+  ["Production Activation", "/activation"],
+  ["Activation Audit", "/activation"],
+  ["Go Live", "/go-live"],
 ]);
 
 export default function RouteBridge() {
