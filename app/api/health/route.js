@@ -3,6 +3,7 @@ import { getAccessReadiness } from "../../server/access-control";
 import { getAuthReadiness } from "../../server/env";
 import { getStorageReadiness } from "../../server/storage";
 import { getIntegrationReadiness } from "../../server/integrations";
+import { getGoLiveReadiness } from "../../server/go-live";
 
 export async function GET(){
   try {
@@ -11,6 +12,7 @@ export async function GET(){
     const access = getAccessReadiness();
     const storage = getStorageReadiness();
     const integrationStaging = getIntegrationReadiness();
+    const goLive = getGoLiveReadiness();
     return Response.json({
       ok:true,
       service:"subpar-os",
@@ -28,6 +30,12 @@ export async function GET(){
         wix:{signedIngressReady:integrationStaging.wix.readyForSignedIngress,applyEnabled:integrationStaging.wix.applyEnabled},
         gmail:{readSyncReady:integrationStaging.gmail.readyForReadSync,outboundReady:integrationStaging.gmail.readyForOutbound,watchConfigured:integrationStaging.gmail.watchConfigured},
         safety:integrationStaging.safety,
+      },
+      goLive:{
+        prerequisitesReady:goLive.prerequisitesReady,
+        liveReady:goLive.liveReady,
+        migrations:goLive.migrations.length,
+        importApplyEnabled:goLive.importApplyEnabled,
       },
       normalizedCounts:system.counts || null,
       integrations:system.integrations,
