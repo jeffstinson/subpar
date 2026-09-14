@@ -27,6 +27,12 @@ export async function POST(request,context){
     const auth=await requireInternalPrincipal(request,permission);
     if(!auth.ok)return Response.json({ok:false,error:auth.error},{status:auth.status});
     const {project}=await context.params;
+    const workspace=await getRevisionDeliveryWorkspace({projectNumber:project,revision:body.revisionNumber||null});
+    const current=workspace.delivery?.status||"draft";
+    const released=new Set(["delivered","acknowledged","relog_requested","closed","recalled"]);
+    if((action==="save"||action==="qa")&&(current==="approved"||released.has(current)))return Response.json({ok:false,error:`Revision delivery is '${current}' and can no longer be edited or downgraded`},{status:409});
+    if(action==="approve"&&current==="approved")return Response.json({ok:true,data:{replayed:true,approved:true,delivery:workspace.delivery}},{headers:{"Cache-Control":"no-store"}});
+    if(action==="approve"&&released.has(current))return Response.json({ok:false,error:`Revision delivery is already '${current}'`},{status:409});
     const common={projectNumber:project,revisionNumber:body.revisionNumber||null,actor:auth.principal.displayName||auth.principal.email||"Subpar tuner"};
     let data;
     if(action==="save")data=await saveRevisionDeliveryDraft({...common,customerSummary:body.customerSummary||"",internalNotes:body.internalNotes||"",nextStep:body.nextStep||"request_log"});
