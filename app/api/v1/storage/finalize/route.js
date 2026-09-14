@@ -5,6 +5,7 @@ import {
   resolvePrincipalFromRequest,
 } from "../../../../server/access-control";
 import { getDataMode } from "../../../../server/env";
+import { analyzeStoredLog } from "../../../../server/log-analysis-persistence";
 import { getSupabaseServerClient } from "../../../../server/supabase-server";
 import {
   storageBuckets,
@@ -127,11 +128,24 @@ export async function POST(request) {
 
     if (error) throw new Error(`Unable to register uploaded file: ${error.message}`);
 
+    let analysis = null;
+    let analysisError = null;
+    if (ticket.kind === "datalog" && ticket.logId) {
+      await supabase.from("logs").update({ status:"uploaded", file_name:ticket.fileName }).eq("id", ticket.logId).eq("project_id", project.id);
+      try {
+        analysis = await analyzeStoredLog(ticket.logId, { actor: principal.type === "customer" ? "Subpar OS customer upload" : (principal.displayName || principal.email || "Subpar OS") });
+      } catch (parseError) {
+        analysisError = parseError.message;
+      }
+    }
+
     return Response.json({
       ok: true,
       dryRun: false,
       file: data,
-      next: ticket.kind === "datalog" ? "parse-log" : "project-file-ready",
+      analysis: analysis ? { log:analysis.log, source:analysis.source } : null,
+      analysisError,
+      next: ticket.kind === "datalog" ? (analysisError ? "log-stored-parser-needs-attention" : "log-parsed-and-routed") : "project-file-ready",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return Response.json({ ok: false, error: error.message }, { status: 400, headers: { "Cache-Control": "no-store" } });
