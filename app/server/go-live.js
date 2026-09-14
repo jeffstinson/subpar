@@ -16,6 +16,7 @@ export const GO_LIVE_MIGRATIONS = [
   { id:"0008", file:"0008_customer_intake_activation.sql", purpose:"Secure customer intake links + atomic vehicle/project activation" },
   { id:"0009", file:"0009_intake_handoff_queue.sql", purpose:"Approval-gated paid-order intake invitation handoff" },
   { id:"0010", file:"0010_vehicle_platform_intelligence.sql", purpose:"BMW/Supra chassis catalog + engine/platform workflow intelligence" },
+  { id:"0011", file:"0011_log_intelligence.sql", purpose:"Versioned datalog channel mapping + parser confidence + review metadata" },
 ];
 
 export const GO_LIVE_ENV_GROUPS = [
@@ -51,13 +52,14 @@ export function getGoLiveReadiness(){
   const liveReady=prerequisitesReady&&integrations.realDataApproved;
   return {mode:getDataMode(),prerequisitesReady,liveReady,checks,envGroups,migrations:GO_LIVE_MIGRATIONS,integrationReadiness:integrations,wixReadReadiness:wixRead,connectionTestsEnabled:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED==="true",recommendedSequence:[
     "Provision dedicated Subpar Supabase project",
-    "Run migrations 0001 through 0010 in order",
+    "Run migrations 0001 through 0011 in order",
     "Run Supabase schema + private bucket preflight",
     "Seed synthetic records and verify dashboard parity",
     "Create Doug owner + synthetic customer identities",
     "Verify login, route boundaries and private files",
     "Validate the BMW/Supra intelligence matrix against Doug-approved examples",
     "Verify customer intake link → intelligence resolution → compatibility review → project activation",
+    "Validate MHD parser channel aliases + review heuristics against Doug-approved sample logs",
     "Configure Wix + Gmail credentials with all read/apply/send gates OFF",
     "Enable connection tests and prove Wix/Gmail OAuth without ingesting data",
     "Enable Wix historical read and run dry-run backfill scans",
@@ -95,6 +97,7 @@ export function goLiveValidationSuite(){return [
   {id:"cross-boundary",name:"Cross-boundary denial",passCondition:"Customer token is rejected from tuner routes and internal files"},
   {id:"files",name:"Private file round-trip",passCondition:"Signed upload → verify → register → signed download succeeds"},
   {id:"vehicle-intelligence",name:"Vehicle intelligence",passCondition:"G20/B58TU/MHD, F82/S55/BM3 and G80/S58/EcuTek resolve the Doug-approved workflow, recipe and requirements"},
+  {id:"log-intelligence",name:"Datalog intelligence",passCondition:"Doug-approved sample logs map required channels with expected confidence and review flags before persistent analysis is enabled"},
   {id:"intake-link",name:"Customer intake link",passCondition:"Raw token is shown once, only its hash persists, and expiration/revocation is enforced"},
   {id:"intake-activate",name:"Intake activation",passCondition:"Approved intake creates one vehicle + project + intelligence-seeded requirements and replay returns the same project"},
   {id:"wix-oauth",name:"Wix read access",passCondition:"Site-scoped OAuth token succeeds and paid-order search returns a deterministic cursor"},
