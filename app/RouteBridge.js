@@ -2,15 +2,21 @@
 
 import { useEffect } from "react";
 
+const routeMap = new Map([
+  ["E85 Calculator", "/calculator"],
+  ["System Audit", "/audit"],
+]);
+
 export default function RouteBridge() {
   useEffect(() => {
     function handleClick(event) {
       const button = event.target?.closest?.("button");
       if (!button) return;
-      if (button.textContent?.trim() !== "E85 Calculator") return;
+      const path = routeMap.get(button.textContent?.trim());
+      if (!path) return;
       event.preventDefault();
       event.stopPropagation();
-      window.location.href = "/calculator";
+      window.location.href = path;
     }
 
     document.addEventListener("click", handleClick, true);
