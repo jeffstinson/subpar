@@ -9,6 +9,16 @@ function assertHandoffWrite(){
   return getSupabaseServerClient();
 }
 
+export async function getIntakeHandoffState(intakeId){
+  if(getDataMode()!=="supabase")return {status:"not_staged",actionId:null,providerMessageId:null,sentAt:null};
+  const supabase=getSupabaseServerClient();
+  const {data:intake,error}=await supabase.from("intake_requests").select("id,handoff_status,invite_action_id,invite_sent_at").eq("id",intakeId).single();
+  if(error)throw new Error(`Unable to inspect intake handoff: ${error.message}`);
+  let action=null;
+  if(intake.invite_action_id){const {data}=await supabase.from("outbound_actions").select("id,status,recipient,subject,provider_message_id,sent_at,approved_at,approved_by,last_error").eq("id",intake.invite_action_id).maybeSingle();action=data||null}
+  return {status:intake.handoff_status||"not_staged",actionId:intake.invite_action_id||null,providerMessageId:action?.provider_message_id||null,sentAt:intake.invite_sent_at||action?.sent_at||null,recipient:action?.recipient||null,subject:action?.subject||null,approvedAt:action?.approved_at||null,approvedBy:action?.approved_by||null,lastError:action?.last_error||null};
+}
+
 export async function stageIntakeInvitation(intakeId,{createdBy="Subpar OS"}={}){
   if(getDataMode()!=="supabase")return {dryRun:true,intakeId,status:"draft",actionType:"send_intake_invite",reason:"Demo mode previews the paid-order intake handoff without storing or sending email."};
   const supabase=assertHandoffWrite();
