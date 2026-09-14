@@ -27,6 +27,7 @@ export default function DeliveryClient({initialWorkspace,readiness}){
   const canQa=Boolean(revision&&file);
   const approved=delivery?.status==="approved";
   const delivered=new Set(["delivered","acknowledged","relog_requested","closed"]).has(delivery?.status);
+  const locked=approved||delivered;
   const gatePass=workspace.gates?.pass===true;
   const customer=project?.customer?.name||project?.customer?.email||"Customer";
   const vehicle=[project?.vehicle?.year,project?.vehicle?.make,project?.vehicle?.model].filter(Boolean).join(" ");
@@ -41,6 +42,18 @@ export default function DeliveryClient({initialWorkspace,readiness}){
     setNextStep(body.workspace.delivery?.nextStep||"request_log");
   }
 
+  function applyDemoAction(name,data){
+    const now=new Date().toISOString();
+    setWorkspace(current=>{
+      const currentDelivery=current.delivery||{id:`demo_delivery_${current.revision?.id||"revision"}`,status:"draft"};
+      if(name==="save")return {...current,delivery:{...currentDelivery,status:"draft",nextStep,customerSummary:summary,internalQaNotes:notes}};
+      if(name==="qa")return {...current,gates:data?.gates||current.gates,delivery:{...currentDelivery,...(data?.delivery||{}),status:data?.gates?.pass?"qa_ready":"draft",nextStep,customerSummary:summary,internalQaNotes:notes,fileSha256:data?.fileSha256||currentDelivery.fileSha256||"demo-sha256-preview"}};
+      if(name==="approve")return {...current,gates:data?.gates||current.gates,revision:{...current.revision,status:"ready"},delivery:{...currentDelivery,...(data?.delivery||{}),status:"approved",nextStep,customerSummary:summary,internalQaNotes:notes,approvedBy:"Doug Talmadge",approvedAt:now}};
+      if(name==="deliver")return {...current,revision:{...current.revision,status:"delivered",customerSummary:summary,publishedAt:now},primaryFile:current.primaryFile?{...current.primaryFile,visibility:"customer"}:current.primaryFile,delivery:{...currentDelivery,...(data?.delivery||{}),status:"delivered",nextStep,customerSummary:summary,deliveredAt:now},outbound:stageEmail?{id:"demo_revision_email",status:"draft",recipient:current.project?.customer?.email||"customer@example.com",subject:`Subpar Tuning · Rev ${rev} is ready`,last_error:null}:null};
+      return current;
+    });
+  }
+
   async function action(name,extra={}){
     if(!project?.projectNumber)return;setBusy(name);setNotice("");
     try{
@@ -48,12 +61,12 @@ export default function DeliveryClient({initialWorkspace,readiness}){
       const body=await response.json();if(!response.ok)throw new Error(body.error||`${name} failed`);
       const messages={save:"Draft saved.",qa:body.data?.gates?.pass?"Delivery QA passed.":"QA completed — one or more gates still need attention.",approve:"Revision approved. The customer still cannot see the file until delivery.",deliver:body.data?.emailError?`Portal delivery completed. Gmail draft was not staged: ${body.data.emailError}`:"Revision delivered to the portal and Gmail notification staged for approval."};
       setNotice(body.data?.dryRun?`Preview: ${messages[name]}`:messages[name]);
-      await refresh();
+      if(body.data?.dryRun)applyDemoAction(name,body.data);else await refresh();
     }catch(error){setNotice(error.message)}finally{setBusy("")}
   }
 
   async function uploadTuneFile(fileInput){
-    if(!fileInput||!revision)return;setBusy("upload");setNotice("Requesting private upload ticket…");
+    if(!fileInput||!revision||locked)return;setBusy("upload");setNotice("Requesting private upload ticket…");
     try{
       const ticketResponse=await fetch("/api/v1/storage/ticket",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload",project:project.projectNumber,kind:"tune_revision",fileName:fileInput.name,revisionNumber:rev,principal:"doug"})});
       const ticketBody=await ticketResponse.json();if(!ticketResponse.ok)throw new Error(ticketBody.error||"Upload ticket failed");
@@ -69,7 +82,7 @@ export default function DeliveryClient({initialWorkspace,readiness}){
       const finalizeResponse=await fetch("/api/v1/storage/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project:project.projectNumber,finalizeToken:ticket.finalizeToken,principal:"doug",mimeType:fileInput.type,sizeBytes:fileInput.size,visibility:"internal"})});
       const done=await finalizeResponse.json();if(!finalizeResponse.ok)throw new Error(done.error||"Tune file finalization failed");
       setNotice(done.dryRun?`Preview: ${fileInput.name} passed the private upload/finalization flow.`:`${fileInput.name} registered privately to Rev ${rev}.`);
-      await refresh();
+      if(done.dryRun){setWorkspace(current=>({...current,primaryFile:{id:`demo_file_${Date.now()}`,revisionId:current.revision?.id,kind:"tune_revision",originalName:fileInput.name,visibility:"internal",immutable:true,sizeBytes:fileInput.size}}))}else await refresh();
     }catch(error){setNotice(error.message)}finally{setBusy("");if(input.current)input.current.value=""}
   }
 
@@ -92,22 +105,22 @@ export default function DeliveryClient({initialWorkspace,readiness}){
 
         <article className={styles.panel}>
           <div className={styles.panelHead}><div><span>PRIVATE ARTIFACT</span><h2>Tune file</h2><p>The file remains internal through upload, QA and approval.</p></div><LockKeyhole size={18}/></div>
-          {file?<div className={styles.fileCard}><div className={styles.fileIcon}><FileKey2 size={20}/></div><div><b>{getName(file)}</b><span>{file.visibility||"internal"} · {file.immutable===false?"mutable":"immutable"} · {file.sizeBytes||file.size_bytes?`${Math.round(Number(file.sizeBytes||file.size_bytes)/1024)} KB`:"size pending"}</span>{delivery?.fileSha256&&<small>SHA-256 · {delivery.fileSha256.slice(0,18)}…</small>}</div><em>{file.visibility==="customer"?"CUSTOMER":"PRIVATE"}</em></div>:<label className={styles.drop}><UploadCloud size={24}/><b>Attach Rev {rev} tune file</b><span>Private storage · immutable registration · customer visibility stays OFF</span><input ref={input} type="file" hidden disabled={Boolean(busy)} onChange={e=>uploadTuneFile(e.target.files?.[0])}/></label>}
-          {file&&!delivered&&<label className={styles.replace}><UploadCloud size={13}/>{busy==="upload"?"Uploading…":"Attach another revision artifact"}<input ref={input} type="file" hidden disabled={Boolean(busy)} onChange={e=>uploadTuneFile(e.target.files?.[0])}/></label>}
+          {file?<div className={styles.fileCard}><div className={styles.fileIcon}><FileKey2 size={20}/></div><div><b>{getName(file)}</b><span>{file.visibility||"internal"} · {file.immutable===false?"mutable":"immutable"} · {file.sizeBytes||file.size_bytes?`${Math.round(Number(file.sizeBytes||file.size_bytes)/1024)} KB`:"size pending"}</span>{delivery?.fileSha256&&<small>SHA-256 · {delivery.fileSha256.slice(0,18)}…</small>}</div><em>{file.visibility==="customer"?"CUSTOMER":"PRIVATE"}</em></div>:<label className={styles.drop}><UploadCloud size={24}/><b>Attach Rev {rev} tune file</b><span>Private storage · immutable registration · customer visibility stays OFF</span><input ref={input} type="file" hidden disabled={Boolean(busy)||locked} onChange={e=>uploadTuneFile(e.target.files?.[0])}/></label>}
+          {file&&!locked&&<label className={styles.replace}><UploadCloud size={13}/>{busy==="upload"?"Uploading…":"Attach another revision artifact"}<input ref={input} type="file" hidden disabled={Boolean(busy)} onChange={e=>uploadTuneFile(e.target.files?.[0])}/></label>}
         </article>
 
         <article className={styles.panel}>
           <div className={styles.panelHead}><div><span>DELIVERY CONTENT</span><h2>Internal vs customer language</h2></div><ShieldCheck size={18}/></div>
-          <label className={styles.field}><span>INTERNAL QA / TUNER NOTE</span><textarea rows={4} value={notes} onChange={e=>setNotes(e.target.value)} disabled={delivered} placeholder="What changed internally, what review finding this responds to, anything Doug wants retained forever…"/></label>
-          <label className={styles.field}><span>CUSTOMER-VISIBLE SUMMARY</span><textarea rows={4} value={summary} onChange={e=>setSummary(e.target.value)} disabled={delivered} placeholder="Plain-language summary of what changed in this revision…"/></label>
-          <div className={styles.nextSteps}>{[["request_log","Request another log","Customer installs this revision, then uploads the next approved log."],["feedback_only","Feedback only","Customer installs and reports how the car feels; no automatic log request."],["complete","Final revision","Customer confirms install, then project returns to Doug for closeout."]].map(([value,title,detail])=><button disabled={delivered} className={nextStep===value?styles.selected:""} onClick={()=>setNextStep(value)} key={value}><i>{nextStep===value?<Check size={11}/>:null}</i><div><b>{title}</b><span>{detail}</span></div></button>)}</div>
-          {!delivered&&<button className={styles.save} disabled={Boolean(busy)} onClick={()=>action("save")}><Save size={14}/>{busy==="save"?"Saving…":"Save delivery draft"}</button>}
+          <label className={styles.field}><span>INTERNAL QA / TUNER NOTE</span><textarea rows={4} value={notes} onChange={e=>setNotes(e.target.value)} disabled={locked} placeholder="What changed internally, what review finding this responds to, anything Doug wants retained forever…"/></label>
+          <label className={styles.field}><span>CUSTOMER-VISIBLE SUMMARY</span><textarea rows={4} value={summary} onChange={e=>setSummary(e.target.value)} disabled={locked} placeholder="Plain-language summary of what changed in this revision…"/></label>
+          <div className={styles.nextSteps}>{[["request_log","Request another log","Customer installs this revision, then uploads the next approved log."],["feedback_only","Feedback only","Customer installs and reports how the car feels; no automatic log request."],["complete","Final revision","Customer confirms install, then project returns to Doug for closeout."]].map(([value,title,detail])=><button disabled={locked} className={nextStep===value?styles.selected:""} onClick={()=>setNextStep(value)} key={value}><i>{nextStep===value?<Check size={11}/>:null}</i><div><b>{title}</b><span>{detail}</span></div></button>)}</div>
+          {!locked&&<button className={styles.save} disabled={Boolean(busy)} onClick={()=>action("save")}><Save size={14}/>{busy==="save"?"Saving…":"Save delivery draft"}</button>}
         </article>
 
         <article className={styles.panel}>
           <div className={styles.panelHead}><div><span>DELIVERY QA</span><h2>{workspace.gates?.passed||0}/{workspace.gates?.total||0} gates passing</h2><p>QA is deterministic; Doug’s approval remains the human release gate.</p></div>{gatePass?<CheckCircle2 size={18}/>:<AlertTriangle size={18}/>}</div>
           <div className={styles.gates}>{gates.map(gate=><div className={gate.pass?styles.gatePass:styles.gateFail} key={gate.key}><i>{gate.pass?<Check size={11}/>:"!"}</i><div><b>{gate.label}</b><span>{gate.detail}</span></div><em>{gate.pass?"PASS":"BLOCK"}</em></div>)}</div>
-          {!delivered&&<div className={styles.qaActions}><button disabled={Boolean(busy)||!canQa} onClick={()=>action("qa")}><RefreshCw size={14}/>{busy==="qa"?"Running QA…":"Run delivery QA"}</button><button className={styles.approve} disabled={Boolean(busy)||!gatePass||delivery?.status!=="qa_ready"} onClick={()=>action("approve")}><ShieldCheck size={14}/>{busy==="approve"?"Approving…":"Approve revision"}</button></div>}
+          {!locked&&<div className={styles.qaActions}><button disabled={Boolean(busy)||!canQa} onClick={()=>action("qa")}><RefreshCw size={14}/>{busy==="qa"?"Running QA…":"Run delivery QA"}</button><button className={styles.approve} disabled={Boolean(busy)||!gatePass||delivery?.status!=="qa_ready"} onClick={()=>action("approve")}><ShieldCheck size={14}/>{busy==="approve"?"Approving…":"Approve revision"}</button></div>}
         </article>
       </section>
 
