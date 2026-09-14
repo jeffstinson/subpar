@@ -27,6 +27,7 @@ Run these in order against the Subpar-only Supabase project:
 11. `0011_log_intelligence.sql`
 12. `0012_log_review_workflow.sql`
 13. `0013_revision_delivery_loop.sql`
+14. `0014_tune_lifecycle_closeout.sql`
 
 Never skip a migration or run them against another project. The `schema_migrations` ledger should report the same ordered versions after provisioning.
 
@@ -126,14 +127,37 @@ Use `/delivery/SP-1842` and `/portal/SP-1842/delivery?preview=alex` in demo firs
 
 Approval and delivery are intentionally separate states. No tune artifact becomes customer-visible at upload or QA time.
 
+## 5C. Validate closeout, archive and future retunes
+
+Use `/lifecycle`, `/closeout/SP-1842` and `/portal/SP-1842/history?preview=alex`.
+
+1. Confirm migration `0014` creates Cycle 1 for existing projects and points `current_cycle_id` at it.
+2. Confirm requirements, revisions, logs, files and events are assigned to the current cycle.
+3. Save the completion summary + aftercare note.
+4. Run closeout QA and confirm it blocks if the final install is not acknowledged.
+5. Confirm unresolved logs or required prerequisites block closeout.
+6. Confirm closeout QA re-reads the exact final tune artifact and verifies its SHA-256.
+7. Approve closeout, then archive the tune.
+8. Confirm final revision → `final`, delivery → `closed`, cycle → `completed`, project → `completed` in one database transaction.
+9. Confirm the completion Gmail message is staged only after the archive transaction succeeds.
+10. Confirm a 7-day follow-up row is scheduled when enabled.
+11. Confirm the follow-up worker stages a Gmail draft only and cannot provider-send it.
+12. Confirm customer tune history exposes only customer-safe package items.
+13. Start Cycle 2 using a hardware/fuel change.
+14. Confirm Cycle 1 revisions/logs/files/events remain unchanged and queryable through the archive.
+15. Confirm the active project surfaces only Cycle 2 requirements/revisions/logs/files/events while messages remain continuous across cycles.
+16. Confirm `/lifecycle` lists the retune as an active Cycle 2.
+
+See `docs/tune-lifecycle.md` for the lifecycle-specific operator/runbook details.
+
 ## 6. Prove identity boundaries
 
 1. Configure public Supabase auth variables.
 2. Create Doug as an `owner` in `internal_users`.
 3. Create a synthetic customer auth user mapped in `customer_portal_users`.
 4. Enable internal auth in preview first.
-5. Confirm Doug can access tuner/admin routes, including `/intelligence`, `/log-lab`, `/reviews`, `/delivery/SP-1842`, `/intake-queue`, `/messages`, `/outbound`, `/go-live` and live workspaces.
-6. Confirm the customer can access only their portal-visible project/file/message/delivery data.
+5. Confirm Doug can access tuner/admin routes, including `/intelligence`, `/log-lab`, `/reviews`, `/delivery/SP-1842`, `/closeout/SP-1842`, `/lifecycle`, `/intake-queue`, `/messages`, `/outbound`, `/go-live` and live workspaces.
+6. Confirm the customer can access only their portal-visible project/file/message/delivery/history data.
 7. Confirm customer access to internal routes/APIs/files is denied.
 8. Test login refresh, session expiry and logout.
 
@@ -274,6 +298,8 @@ Outbound flow is intentionally:
 
 Revision delivery uses the same separation: portal release is authoritative; the customer-notification email is staged afterward and provider send remains separately gated.
 
+Closeout/follow-up uses the same rule: archive is authoritative; completion/follow-up messages are staged afterward and remain approval-gated.
+
 The intake invitation also uses the same approval boundary. Its raw secure intake link is created only immediately before provider send.
 
 ## 16. Cutover completion criteria
@@ -281,7 +307,7 @@ The intake invitation also uses the same approval boundary. Its raw secure intak
 The deployment is operational only when all of these are true:
 
 - database parity passed
-- migration ledger shows 0001–0013
+- migration ledger shows 0001–0014
 - vehicle intelligence representative tests passed
 - datalog intelligence sample-log validation passed
 - Review Cockpit decision/replay validation passed
@@ -289,6 +315,10 @@ The deployment is operational only when all of these are true:
 - revision artifact pin/hash/atomic-release tests passed
 - customer delivery acknowledgement passed
 - customer next-log upload → parser → Doug review return passed
+- closeout QA/hash/atomic archive passed
+- customer-safe tune history passed
+- follow-up draft-only boundary passed
+- Cycle 2 retune preserves Cycle 1 history and scopes active project records correctly
 - Doug internal identity passed
 - customer isolation passed
 - cross-boundary denial passed
@@ -312,9 +342,11 @@ If anything looks wrong:
 2. Set `SUBPAR_GMAIL_SYNC_ENABLED=false`.
 3. Set `SUBPAR_GMAIL_SEND_ENABLED=false`.
 4. Set `SUBPAR_IMPORT_APPLY_ENABLED=false` if a backfill is active.
-5. Leave signed Wix receipt capture on only if diagnosis needs provider events recorded.
-6. Do not delete integration history, intelligence profiles, parser profiles, review sessions, revision-delivery records or project history. Pause and inspect the ledgers.
-7. Never make an approved tune file public manually to work around a delivery problem; fix the QA/release failure and rerun the controlled flow.
-8. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
+5. Set `SUBPAR_FOLLOWUP_AUTOMATION_ENABLED=false` if lifecycle follow-ups are being staged unexpectedly.
+6. Leave signed Wix receipt capture on only if diagnosis needs provider events recorded.
+7. Do not delete integration history, intelligence profiles, parser profiles, review sessions, revision-delivery records, tune-cycle records, closeouts or project history. Pause and inspect the ledgers.
+8. Never make an approved tune file public manually to work around a delivery problem; fix the QA/release failure and rerun the controlled flow.
+9. Never move historical revisions/logs/files manually between tune cycles to “clean up” a retune.
+10. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
 
 Every live capability is designed to pause independently without taking the dashboard offline.
