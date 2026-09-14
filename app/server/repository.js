@@ -107,8 +107,9 @@ export async function getReadinessData() {
       "supabase/migrations/0008_customer_intake_activation.sql",
       "supabase/migrations/0009_intake_handoff_queue.sql",
       "supabase/migrations/0010_vehicle_platform_intelligence.sql",
+      "supabase/migrations/0011_log_intelligence.sql",
     ],
-    schemaHead: "0010_vehicle_platform_intelligence",
+    schemaHead: "0011_log_intelligence",
     syntheticSeed: "supabase/seed/0001_demo.sql",
   };
 }
