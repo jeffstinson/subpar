@@ -5,6 +5,7 @@ import RootHome from "../page";
 
 const PROJECT_PATH = "/project/SP-1842";
 const PORTAL_PATH = "/portal/SP-1842";
+const WORKFLOW_PATH = "/workflow/SP-1842";
 
 export default function Home() {
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function Home() {
         <div className="demoProjectLauncherActions">
           <a href={PROJECT_PATH}>Tuner view</a>
           <a href={PORTAL_PATH}>Customer view</a>
+          <a className="workflowLink" href={WORKFLOW_PATH}>Workflow</a>
         </div>
       </div>
       <style jsx global>{`
@@ -97,7 +99,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 10px;
-          min-width: 390px;
+          min-width: 465px;
           padding: 11px 13px;
           border: 1px solid #31513c;
           border-radius: 12px;
@@ -143,7 +145,11 @@ export default function Home() {
           font-weight: 850;
           white-space: nowrap;
         }
-        .demoProjectLauncherActions a:last-child {
+        .demoProjectLauncherActions a:nth-child(2) {
+          background: #173522;
+          border-color: #356846;
+        }
+        .demoProjectLauncherActions a.workflowLink {
           background: #1c5f34;
           border-color: #2d8250;
           color: #fff;
@@ -160,11 +166,11 @@ export default function Home() {
           .demoProjectLauncherActions {
             width: 100%;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
           }
           .demoProjectLauncherActions a {
             text-align: center;
-            padding: 8px;
+            padding: 8px 5px;
           }
         }
       `}</style>
