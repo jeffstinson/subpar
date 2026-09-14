@@ -9,7 +9,7 @@ const routeMap = new Map([
   ["Messages", "/messages"],
   ["Message customer", "/messages"],
   ["New Orders", "/intake-queue"],
-  ["Datalog Reviews", "/log-lab"],
+  ["Datalog Reviews", "/reviews"],
   ["Vehicle Intelligence", "/intelligence"],
 ]);
 
