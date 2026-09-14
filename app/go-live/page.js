@@ -19,7 +19,7 @@ export default async function GoLivePage(){
     </header>
 
     <section className={styles.hero}>
-      <div><span className={styles.eyebrow}>PHASE 6 • DEPLOYMENT + CUTOVER READINESS</span><h1>Make Doug’s eventual setup boring.</h1><p>Everything needed to move from synthetic preview to a real Subpar deployment is organized here: isolated infrastructure, migrations, identities, private files, Wix/Gmail configuration, historical imports, validation tests and the exact order to flip live gates.</p><div className={styles.heroMeta}><span><ShieldCheck size={13}/>Default deny</span><span><Database size={13}/>5 ordered migrations</span><span><FileCheck2 size={13}/>Replay-safe imports</span></div></div>
+      <div><span className={styles.eyebrow}>PHASE 6 • DEPLOYMENT + CUTOVER READINESS</span><h1>Make Doug’s eventual setup boring.</h1><p>Everything needed to move from synthetic preview to a real Subpar deployment is organized here: isolated infrastructure, migrations, identities, private files, Wix/Gmail configuration, historical imports, validation tests and the exact order to flip live gates.</p><div className={styles.heroMeta}><span><ShieldCheck size={13}/>Default deny</span><span><Database size={13}/>6 ordered migrations</span><span><FileCheck2 size={13}/>Replay-safe imports</span></div></div>
       <div className={styles.score}><span>PRE-REQUISITES</span><b>{readiness.prerequisitesReady?"READY":"STAGED"}</b><small>{readiness.liveReady?"live gate approved":"real-data gate remains closed"}</small></div>
     </section>
 
