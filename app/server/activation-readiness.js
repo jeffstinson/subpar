@@ -69,13 +69,13 @@ function gateSequenceChecks(context){
 }
 
 async function migrationCheck(){
+  const expected=GO_LIVE_MIGRATIONS.map(item=>item.id);
   const mode=getDataMode();
-  if(mode!=="supabase")return skipped("schema-head","database",`Demo mode expects migrations 0001–${EXPECTED_SCHEMA_HEAD}; no live database is attached.`,{metadata:{expected:GO_LIVE_MIGRATIONS.map(x=>x.id).concat(EXPECTED_SCHEMA_HEAD)}});
+  if(mode!=="supabase")return skipped("schema-head","database",`Demo mode expects migrations 0001–${EXPECTED_SCHEMA_HEAD}; no live database is attached.`,{metadata:{expected}});
   const supabase=getSupabaseServerClient();
   const {data,error}=await supabase.from("schema_migrations").select("version,name,applied_at").order("version",{ascending:true});
   if(error)return fail("schema-head","database",`Unable to read schema migration ledger: ${error.message}`);
   const installed=new Set((data||[]).map(row=>row.version));
-  const expected=[...GO_LIVE_MIGRATIONS.map(item=>item.id),EXPECTED_SCHEMA_HEAD];
   const missing=expected.filter(version=>!installed.has(version));
   return missing.length?fail("schema-head","database",`Missing ${missing.length} required migration(s): ${missing.join(", ")}.`,{metadata:{missing,installed:[...installed]}}):pass("schema-head","database",`Migration ledger is complete through ${EXPECTED_SCHEMA_HEAD}.`,{metadata:{installed:[...installed]}});
 }
@@ -109,8 +109,36 @@ async function integrityChecks(){
   }catch(error){return [fail("integrity-rpc","data-integrity",`Operational integrity probe failed: ${error.message}`)];}
 }
 
+async function recordedSyntheticCheckpoint(){
+  if(getDataMode()!=="supabase")return null;
+  const supabase=getSupabaseServerClient();
+  const {data}=await supabase.from("setup_checkpoints").select("status,verified_by,verified_at").eq("checkpoint_key","synthetic_end_to_end").maybeSingle();
+  return data||null;
+}
+
+function recordedSmokePass(checkpoint){
+  const suffix=checkpoint?.verified_by?` Verified by ${checkpoint.verified_by}${checkpoint.verified_at?` on ${new Date(checkpoint.verified_at).toISOString()}`:""}.`:"";
+  return [
+    pass("smoke-project","synthetic-smoke",`Synthetic project/repository loop was previously validated.${suffix}`),
+    pass("smoke-review","synthetic-smoke",`Synthetic parser/review loop was previously validated.${suffix}`),
+    pass("smoke-delivery","synthetic-smoke",`Synthetic revision delivery loop was previously validated.${suffix}`),
+    pass("smoke-closeout","synthetic-smoke",`Synthetic closeout/retune loop was previously validated.${suffix}`),
+    pass("smoke-history","synthetic-smoke",`Synthetic customer history loop was previously validated.${suffix}`),
+  ];
+}
+
 async function smokeChecks(){
   try{
+    if(getDataMode()==="supabase"){
+      const supabase=getSupabaseServerClient();
+      const {data:fixture,error}=await supabase.from("tune_projects").select("project_number").eq("project_number","SP-1842").maybeSingle();
+      if(error)throw new Error(`Unable to inspect synthetic fixture: ${error.message}`);
+      if(!fixture){
+        const checkpoint=await recordedSyntheticCheckpoint();
+        if(PASS_CHECKPOINT_STATES.has(checkpoint?.status))return recordedSmokePass(checkpoint);
+        return [fail("smoke-runtime","synthetic-smoke","SP-1842 synthetic fixture is not present and synthetic_end_to_end has not been recorded passed. Run the synthetic validation before removing fixtures.")];
+      }
+    }
     const project=await getProjectById("SP-1842");
     const [review,delivery,lifecycle,history]=await Promise.all([
       getLogReviewWorkspace({projectNumber:"SP-1842"}),
@@ -146,6 +174,24 @@ function preflightChecks(preflight){
   });
 }
 
+async function providerEvidenceChecks(){
+  if(getDataMode()!=="supabase")return [
+    skipped("provider-evidence-wix","provider-evidence","Wix connection evidence will appear after isolated Supabase is attached and provider preflight runs."),
+    skipped("provider-evidence-gmail","provider-evidence","Gmail connection evidence will appear after isolated Supabase is attached and provider preflight runs."),
+  ];
+  const supabase=getSupabaseServerClient();
+  const {data,error}=await supabase.from("connection_tests").select("provider,status,detail,tested_by,tested_at").in("provider",["wix","gmail"]).order("tested_at",{ascending:false}).limit(30);
+  if(error)return [fail("provider-evidence-runtime","provider-evidence",`Unable to read provider connection evidence: ${error.message}`)];
+  const latest={};
+  for(const row of data||[]){if(!latest[row.provider])latest[row.provider]=row}
+  return ["wix","gmail"].map(provider=>{
+    const row=latest[provider];
+    if(!row)return fail(`provider-evidence-${provider}`,"provider-evidence",`No successful ${provider} connection test has been recorded yet.`);
+    if(row.status!=="pass")return fail(`provider-evidence-${provider}`,"provider-evidence",`Latest ${provider} connection test is ${row.status}: ${row.detail||"no detail"}.`,{metadata:{testedAt:row.tested_at,testedBy:row.tested_by}});
+    return pass(`provider-evidence-${provider}`,"provider-evidence",`Latest ${provider} connection test passed${row.tested_at?` at ${new Date(row.tested_at).toISOString()}`:""}.`,{metadata:{testedAt:row.tested_at,testedBy:row.tested_by}});
+  });
+}
+
 function summarize(checks){
   const counts={pass:0,warn:0,fail:0,skipped:0};
   for(const item of checks)counts[item.status]=(counts[item.status]||0)+1;
@@ -157,13 +203,13 @@ function summarize(checks){
 function phaseReadiness(checks,checkpoints,context){
   const byKey=Object.fromEntries(checks.map(item=>[item.key,item]));
   const checkpoint=Object.fromEntries((checkpoints||[]).map(item=>[item.checkpoint_key,item]));
-  const passing=key=>byKey[key]?.status==="pass"||byKey[key]?.status==="skipped";
+  const passing=key=>byKey[key]?.status==="pass";
   const syntheticKeys=["smoke-project","smoke-review","smoke-delivery","smoke-closeout","smoke-history"];
   const codeFoundation=syntheticKeys.every(passing);
   const infrastructure=getDataMode()==="supabase"&&[
     "supabase-config","public-auth-config","internal-auth-enabled","portal-auth-enabled","file-ticket-secret","storage-config","schema-head","integrity-rpc"
   ].every(key=>byKey[key]?.status==="pass")&&!checks.some(item=>item.category==="data-integrity"&&item.status==="fail"&&item.severity==="blocker");
-  const providers=["wix-webhook-key","wix-oauth-config","gmail-oauth-config","gmail-watch-config"].every(key=>byKey[key]?.status==="pass")&&!checks.some(item=>item.category==="activation-gates"&&item.status==="fail");
+  const providers=["wix-webhook-key","wix-oauth-config","gmail-oauth-config","gmail-watch-config","provider-evidence-wix","provider-evidence-gmail"].every(key=>byKey[key]?.status==="pass")&&!checks.some(item=>item.category==="activation-gates"&&item.status==="fail");
   const historicalReconciled=PASS_CHECKPOINT_STATES.has(checkpoint.historical_reconciliation?.status);
   const wixReplay=PASS_CHECKPOINT_STATES.has(checkpoint.wix_replay?.status);
   const gmailHistory=PASS_CHECKPOINT_STATES.has(checkpoint.gmail_history?.status);
@@ -203,11 +249,12 @@ export async function runActivationAudit({actor="Doug Talmadge",includeProviderP
 
   const scopes=includeProviderProbes?["supabase","storage","wix","gmail"]:["supabase","storage"];
   try{checks.push(...preflightChecks(await runPreflight({scopes,testedBy:actor})))}catch(error){checks.push(fail("preflight-runtime","provider-preflight",`Preflight runner failed: ${error.message}`))}
+  checks.push(...await providerEvidenceChecks());
 
   const checkpoints=await checkpointSnapshot();
   const summary=summarize(checks);
   const phases=phaseReadiness(checks,checkpoints,context);
-  const audit={generatedAt:new Date().toISOString(),mode:getDataMode(),environment:process.env.NEXT_PUBLIC_SUBPAR_ENV||"preview",commit:process.env.VERCEL_GIT_COMMIT_SHA||null,summary,phases,checks,checkpoints,manifest:{schemaHead:EXPECTED_SCHEMA_HEAD,migrations:[...GO_LIVE_MIGRATIONS.map(item=>item.id),EXPECTED_SCHEMA_HEAD],realDataApproved:context.integrations.realDataApproved,mutationsEnabled:mutationsEnabled(),providerProbesRequested:Boolean(includeProviderProbes)}};
+  const audit={generatedAt:new Date().toISOString(),mode:getDataMode(),environment:process.env.NEXT_PUBLIC_SUBPAR_ENV||"preview",commit:process.env.VERCEL_GIT_COMMIT_SHA||null,summary,phases,checks,checkpoints,manifest:{schemaHead:EXPECTED_SCHEMA_HEAD,migrations:GO_LIVE_MIGRATIONS.map(item=>item.id),realDataApproved:context.integrations.realDataApproved,mutationsEnabled:mutationsEnabled(),providerProbesRequested:Boolean(includeProviderProbes)}};
   audit.persistence=persist?await persistAudit(audit,actor):{persisted:false,reason:"Persistence was not requested."};
   return audit;
 }
@@ -223,7 +270,7 @@ export async function listActivationAudits(limit=8){
 export function activationCutoverSequence(){return [
   {step:1,key:"infrastructure",label:"Provision isolated infrastructure",detail:"Dedicated Supabase, private buckets, auth identities and all migrations through 0015."},
   {step:2,key:"synthetic",label:"Prove the synthetic end-to-end loop",detail:"Intake → project → parser → review → revision → delivery → closeout → Cycle 2 retune."},
-  {step:3,key:"providers",label:"Verify provider connections",detail:"Wix signed ingress/OAuth and Gmail OAuth/watch with apply/send still OFF."},
+  {step:3,key:"providers",label:"Verify provider connections",detail:"Wix OAuth and Gmail OAuth/profile probes can run before ingest/apply/send gates are enabled."},
   {step:4,key:"history",label:"Dry-run and reconcile history",detail:"Wix orders + Gmail threads must reconcile with no unexplained records or ambiguous auto-merges."},
   {step:5,key:"live-read",label:"Enable live reads first",detail:"Wix ingress capture and Gmail read sync before any provider write/send capability."},
   {step:6,key:"live-apply",label:"Enable controlled applies",detail:"Wix order apply/import mutations only after replay/conflict tests pass."},
