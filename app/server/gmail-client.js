@@ -22,6 +22,16 @@ export async function fetchGmailMessage(messageId) {
   return gmailJson(`messages/${encodeURIComponent(messageId)}`,{format:"full"});
 }
 
+export async function listGmailThreads({query="",pageToken=null,limit=100}={}) {
+  const safeLimit=Math.max(1,Math.min(Number(limit)||100,500));
+  const data=await gmailJson("threads",{q:query||undefined,pageToken:pageToken||undefined,maxResults:safeLimit,includeSpamTrash:false});
+  return {
+    threads:data.threads||[],
+    nextPageToken:data.nextPageToken||null,
+    resultSizeEstimate:data.resultSizeEstimate??null,
+  };
+}
+
 export function extractGmailThreadIds(history = []) {
   const ids = new Set();
   for (const entry of history || []) {
