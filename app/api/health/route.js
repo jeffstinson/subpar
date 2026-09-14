@@ -1,10 +1,23 @@
+import { getSystemData } from "../../server/repository";
+
 export async function GET(){
-  return Response.json({
-    ok:true,
-    service:"subpar-os",
-    mode:"synthetic-demo",
-    integrations:{wix:"disconnected",gmail:"disconnected",mhd:"planned",bootmod3:"planned",ecutek:"planned",datazap:"planned"},
-    data:"synthetic-only",
-    timestamp:new Date().toISOString()
-  },{headers:{"Cache-Control":"no-store"}})
+  try {
+    const system = await getSystemData();
+    return Response.json({
+      ok:true,
+      service:"subpar-os",
+      mode:system.configuredMode,
+      schemaVersion:system.schemaVersion,
+      mutationMode:system.mutationMode,
+      mutationsEnabled:system.mutationsEnabled,
+      dataCore:"ready",
+      normalizedCounts:system.counts,
+      integrations:system.integrations,
+      ndaGate:system.ndaGate,
+      api:"/api/v1",
+      timestamp:new Date().toISOString()
+    },{headers:{"Cache-Control":"no-store"}})
+  } catch (error) {
+    return Response.json({ok:false,service:"subpar-os",error:error.message,timestamp:new Date().toISOString()},{status:500,headers:{"Cache-Control":"no-store"}})
+  }
 }
