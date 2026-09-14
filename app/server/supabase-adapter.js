@@ -22,7 +22,6 @@ async function rest(table, params = "", options = {}) {
       ...(options.headers || {}),
     },
   });
-
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(`Supabase ${table} request failed (${response.status}): ${detail.slice(0, 300)}`);
@@ -39,11 +38,22 @@ function camelize(row) {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [snakeToCamel(key), value]));
 }
 
+function customerView(raw) {
+  const c = camelize(raw);
+  if (!c) return null;
+  return {...c,name:[c.firstName,c.lastName].filter(Boolean).join(" ") || c.email};
+}
+
+function projectAliases(raw) {
+  const p = camelize(raw);
+  return {...p,currentRevision:p.currentRevisionNumber ?? 0};
+}
+
 function projectView(project, customers, vehicles, orders) {
-  const p = camelize(project);
+  const p = projectAliases(project);
   return {
     ...p,
-    customer: camelize(customers.find(item => item.id === project.customer_id)) || null,
+    customer: customerView(customers.find(item => item.id === project.customer_id)),
     vehicle: camelize(vehicles.find(item => item.id === project.vehicle_id)) || null,
     order: camelize(orders.find(item => item.id === project.order_id)) || null,
   };
@@ -62,13 +72,12 @@ async function baseCollections() {
 export async function supabaseProjects(filters = {}) {
   const { projects, customers, vehicles, orders } = await baseCollections();
   const q = String(filters.q || "").toLowerCase();
-
   return projects.map(project => projectView(project, customers, vehicles, orders)).filter(project => {
     if (filters.platform && project.platform?.toLowerCase() !== String(filters.platform).toLowerCase()) return false;
     if (filters.waitingOn && project.waitingOn?.toLowerCase() !== String(filters.waitingOn).toLowerCase()) return false;
     if (filters.status && project.status?.toLowerCase() !== String(filters.status).toLowerCase()) return false;
     if (q) {
-      const haystack = [project.projectNumber, project.customer?.firstName, project.customer?.lastName, project.customer?.email, project.vehicle?.model, project.vehicle?.chassis, project.vehicle?.engine, project.platform, project.status].join(" ").toLowerCase();
+      const haystack = [project.projectNumber, project.customer?.name, project.customer?.email, project.vehicle?.model, project.vehicle?.chassis, project.vehicle?.engine, project.platform, project.status].join(" ").toLowerCase();
       if (!haystack.includes(q)) return false;
     }
     return true;
@@ -78,9 +87,7 @@ export async function supabaseProjects(filters = {}) {
 export async function supabaseProject(idOrNumber) {
   const byNumber = await rest("tune_projects", `select=*&project_number=eq.${encodeURIComponent(idOrNumber)}&limit=1`);
   let project = one(byNumber);
-  if (!project && /^[0-9a-f-]{36}$/i.test(String(idOrNumber))) {
-    project = one(await rest("tune_projects", `select=*&id=eq.${encodeURIComponent(idOrNumber)}&limit=1`));
-  }
+  if (!project && /^[0-9a-f-]{36}$/i.test(String(idOrNumber))) project = one(await rest("tune_projects", `select=*&id=eq.${encodeURIComponent(idOrNumber)}&limit=1`));
   if (!project) return null;
 
   const [customerRows, vehicleRows, orderRows, requirements, revisions, logs, files, messages, events] = await Promise.all([
@@ -96,8 +103,8 @@ export async function supabaseProject(idOrNumber) {
   ]);
 
   return {
-    ...camelize(project),
-    customer: camelize(one(customerRows)),
+    ...projectAliases(project),
+    customer: customerView(one(customerRows)),
     vehicle: camelize(one(vehicleRows)),
     order: camelize(one(orderRows)),
     requirements: requirements.map(camelize),
@@ -116,9 +123,9 @@ export async function supabaseCustomers() {
     rest("tune_projects", "select=id,project_number,customer_id,status,platform"),
   ]);
   return customers.map(raw => ({
-    ...camelize(raw),
+    ...customerView(raw),
     vehicles: vehicles.filter(item => item.customer_id === raw.id).map(camelize),
-    projects: projects.filter(item => item.customer_id === raw.id).map(camelize),
+    projects: projects.filter(item => item.customer_id === raw.id).map(projectAliases),
   }));
 }
 
@@ -126,12 +133,12 @@ export async function supabaseVehicles() {
   const [vehicles, customers, projects] = await Promise.all([
     rest("vehicles", "select=*&order=created_at.desc"),
     rest("customers", "select=*"),
-    rest("tune_projects", "select=id,project_number,vehicle_id,status,platform"),
+    rest("tune_projects", "select=id,project_number,vehicle_id,status,platform,current_revision_number"),
   ]);
   return vehicles.map(raw => ({
     ...camelize(raw),
-    customer: camelize(customers.find(item => item.id === raw.customer_id)) || null,
-    projects: projects.filter(item => item.vehicle_id === raw.id).map(camelize),
+    customer: customerView(customers.find(item => item.id === raw.customer_id)),
+    projects: projects.filter(item => item.vehicle_id === raw.id).map(projectAliases),
   }));
 }
 
@@ -171,15 +178,7 @@ export async function supabaseSystem() {
     latencyMs: Date.now() - started,
     probeRows: rows.length,
     readiness,
-    integrations: {
-      supabase: "connected",
-      wix: "disconnected",
-      gmail: "disconnected",
-      mhd: "planned",
-      bootmod3: "planned",
-      ecutek: "planned",
-      datazap: "planned",
-    },
+    integrations: {supabase:"connected",wix:"disconnected",gmail:"disconnected",mhd:"planned",bootmod3:"planned",ecutek:"planned",datazap:"planned"},
     ndaGate: "real-data-disabled",
   };
 }
