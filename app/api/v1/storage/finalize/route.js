@@ -29,6 +29,12 @@ function mimeFromMetadata(metadata, fallback) {
   return metadata?.mimetype || metadata?.contentType || fallback || null;
 }
 
+function normalizedSize(objectSize, suppliedSize) {
+  if (objectSize !== null && objectSize !== undefined) return objectSize;
+  const parsed = Number(suppliedSize);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -112,7 +118,7 @@ export async function POST(request) {
         storage_path: ticket.path,
         original_name: ticket.fileName,
         mime_type: mimeFromMetadata(object.metadata, body.mimeType),
-        size_bytes: object.size ?? Number(body.sizeBytes) || null,
+        size_bytes: normalizedSize(object.size, body.sizeBytes),
         visibility,
         immutable: immutableKinds.has(ticket.kind),
       })
