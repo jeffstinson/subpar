@@ -19,6 +19,7 @@ export const GO_LIVE_MIGRATIONS = [
   { id:"0011", file:"0011_log_intelligence.sql", purpose:"Versioned datalog channel mapping + parser confidence + review metadata" },
   { id:"0012", file:"0012_log_review_workflow.sql", purpose:"Persistent tuner review sessions + annotations + external log references" },
   { id:"0013", file:"0013_revision_delivery_loop.sql", purpose:"Revision QA + private artifact release + customer acknowledgement + next-log loop" },
+  { id:"0014", file:"0014_tune_lifecycle_closeout.sql", purpose:"Tune-cycle boundaries + atomic closeout + follow-up queue + history-safe retunes" },
 ];
 
 export const GO_LIVE_ENV_GROUPS = [
@@ -26,6 +27,7 @@ export const GO_LIVE_ENV_GROUPS = [
   {id:"wix",label:"Wix",required:true,vars:["SUBPAR_WIX_APP_ID","SUBPAR_WIX_APP_SECRET","SUBPAR_WIX_INSTANCE_ID","SUBPAR_WIX_WEBHOOK_PUBLIC_KEY"]},
   {id:"gmail",label:"Gmail",required:true,vars:["SUBPAR_GOOGLE_CLIENT_ID","SUBPAR_GOOGLE_CLIENT_SECRET","SUBPAR_GOOGLE_REFRESH_TOKEN","SUBPAR_GMAIL_ACCOUNT","SUBPAR_GMAIL_PUBSUB_TOPIC"]},
   {id:"gates",label:"Activation gates",required:true,vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_CONNECTION_TESTS_ENABLED","SUBPAR_IMPORT_APPLY_ENABLED","SUBPAR_WIX_READ_ENABLED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"]},
+  {id:"followup",label:"Optional follow-up scheduler",required:false,vars:["SUBPAR_FOLLOWUP_AUTOMATION_ENABLED","SUBPAR_CRON_SECRET"]},
 ];
 
 function envSet(name){if(name==="SUBPAR_SUPABASE_URL")return Boolean(process.env.SUBPAR_SUPABASE_URL||process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_URL);return Boolean(process.env[name])}
@@ -52,9 +54,9 @@ export function getGoLiveReadiness(){
   const envGroups=GO_LIVE_ENV_GROUPS.map(group=>({...group,values:group.vars.map(name=>({name,configured:envSet(name)}))}));
   const prerequisitesReady=checks.filter(check=>check.id!=="real-data").every(check=>check.ready);
   const liveReady=prerequisitesReady&&integrations.realDataApproved;
-  return {mode:getDataMode(),prerequisitesReady,liveReady,checks,envGroups,migrations:GO_LIVE_MIGRATIONS,integrationReadiness:integrations,wixReadReadiness:wixRead,connectionTestsEnabled:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED==="true",recommendedSequence:[
+  return {mode:getDataMode(),prerequisitesReady,liveReady,checks,envGroups,migrations:GO_LIVE_MIGRATIONS,integrationReadiness:integrations,wixReadReadiness:wixRead,connectionTestsEnabled:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED==="true",followupAutomationEnabled:process.env.SUBPAR_FOLLOWUP_AUTOMATION_ENABLED==="true",recommendedSequence:[
     "Provision dedicated Subpar Supabase project",
-    "Run migrations 0001 through 0013 in order",
+    "Run migrations 0001 through 0014 in order",
     "Run Supabase schema + private bucket preflight",
     "Seed synthetic records and verify dashboard parity",
     "Create Doug owner + synthetic customer identities",
@@ -64,6 +66,7 @@ export function getGoLiveReadiness(){
     "Validate MHD parser channel aliases + review heuristics against Doug-approved sample logs",
     "Validate review cockpit comparison, annotations, decisions and Datazap reference behavior",
     "Validate Rev N+1 private file → QA hash/gates → approval → portal delivery → customer install acknowledgement → next-log return",
+    "Validate final closeout → immutable baseline/package → atomic archive → follow-up draft → Cycle 2 retune without altering Cycle 1",
     "Configure Wix + Gmail credentials with all read/apply/send gates OFF",
     "Enable connection tests and prove Wix/Gmail OAuth without ingesting data",
     "Enable Wix historical read and run dry-run backfill scans",
@@ -73,6 +76,7 @@ export function getGoLiveReadiness(){
     "Enable Wix live apply after replay tests",
     "Enable Gmail read sync from the recorded cutover cursor",
     "Enable outbound Gmail only after message approval tests",
+    "Optionally enable the follow-up scheduler last; it stages Gmail drafts only and never provider-sends automatically",
   ]};
 }
 
@@ -105,6 +109,7 @@ export function goLiveValidationSuite(){return [
   {id:"log-review",name:"Datalog review workflow",passCondition:"Current vs previous pull deltas, tuner annotations and explicit create-revision/re-log/complete/hold decisions persist and hand off the project correctly"},
   {id:"datazap-reference",name:"Datazap reference boundary",passCondition:"Valid datazap.me URLs link to a project as references without being treated as parsed numeric evidence until a verified source file exists"},
   {id:"revision-delivery",name:"Revision delivery loop",passCondition:"Private tune artifact stays internal through QA/approval, hashes cleanly, becomes customer-visible only at delivery, records customer acknowledgement/install and routes the next CSV back to parsed review"},
+  {id:"lifecycle-closeout",name:"Tune lifecycle closeout",passCondition:"Final artifact hash + unresolved work gates pass, archive is atomic, Cycle 1 remains queryable, follow-up stages as a draft, and Cycle 2 starts without deleting/renumbering Cycle 1 history"},
   {id:"intake-link",name:"Customer intake link",passCondition:"Raw token is shown once, only its hash persists, and expiration/revocation is enforced"},
   {id:"intake-activate",name:"Intake activation",passCondition:"Approved intake creates one vehicle + project + intelligence-seeded requirements and replay returns the same project"},
   {id:"wix-oauth",name:"Wix read access",passCondition:"Site-scoped OAuth token succeeds and paid-order search returns a deterministic cursor"},
