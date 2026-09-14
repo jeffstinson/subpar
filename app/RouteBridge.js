@@ -11,6 +11,8 @@ const routeMap = new Map([
   ["New Orders", "/intake-queue"],
   ["Datalog Reviews", "/reviews"],
   ["Tune Revisions", "/delivery/SP-1842"],
+  ["Closed Tunes", "/closeout/SP-1842"],
+  ["Tune Lifecycle", "/closeout/SP-1842"],
   ["Vehicle Intelligence", "/intelligence"],
 ]);
 
