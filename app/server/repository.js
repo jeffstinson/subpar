@@ -6,6 +6,7 @@ import {
   listVehicles,
   systemSnapshot,
 } from "./demo-store";
+import { previewTransition, stageForLegacyStatus } from "./workflow";
 
 export function getDataMode() {
   return process.env.SUBPAR_DATA_MODE || "demo";
@@ -53,6 +54,7 @@ export async function getSystemData() {
     ...systemSnapshot(),
     configuredMode:getDataMode(),
     mutationsEnabled:mutationsEnabled(),
+    workflowStateMachine:true,
   };
 }
 
@@ -73,12 +75,22 @@ export async function previewAction(payload = {}) {
 
   if (!supported.has(action)) throw new Error(`Unsupported action '${action}'`);
 
+  let transition = null;
+  if (action === "project.status.change") {
+    const project = getProject(payload.project);
+    if (!project) throw new Error("project was not found");
+    const to = payload.input?.stage;
+    if (!to) throw new Error("input.stage is required for project.status.change");
+    transition = previewTransition({...project,stage:stageForLegacyStatus(project.status)},to);
+  }
+
   return {
     accepted:false,
     dryRun:true,
     action,
     project:payload.project || null,
     input:payload.input || {},
+    transition,
     reason:"Synthetic demo mode prevents persistent mutations and outbound customer actions.",
     wouldCreateEvent:{
       type:action,
