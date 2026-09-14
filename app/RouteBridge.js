@@ -6,6 +6,7 @@ const routeMap = new Map([
   ["E85 Calculator", "/calculator"],
   ["System Audit", "/audit"],
   ["Integrations", "/integration-lab"],
+  ["Messages", "/messages"],
 ]);
 
 export default function RouteBridge() {
