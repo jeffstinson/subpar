@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { CheckCircle2, Download, Eye, File, FileKey2, LockKeyhole, UploadCloud } from "lucide-react";
 import styles from "./files.module.css";
 
@@ -33,8 +34,12 @@ export default function FileManager({project}){
       const ticket=ticketBody.ticket;
       if(ticket.signedUrl){
         setStatus("Uploading directly to private storage…");
-        const up=await fetch(ticket.signedUrl,{method:"PUT",headers:{"Content-Type":file.type||"application/octet-stream"},body:file});
-        if(!up.ok)throw new Error("Private storage upload failed");
+        const url=process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_URL;
+        const key=process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_ANON_KEY;
+        if(!url||!key)throw new Error("Public Supabase storage configuration is missing");
+        const supabase=createClient(url,key,{auth:{persistSession:true}});
+        const {error}=await supabase.storage.from(ticket.bucket).uploadToSignedUrl(ticket.path,ticket.token,file,{contentType:file.type||"application/octet-stream",upsert:false});
+        if(error)throw new Error(`Private storage upload failed: ${error.message}`);
       }
       const finalize=await fetch("/api/v1/storage/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project:project.projectNumber,finalizeToken:ticket.finalizeToken,principal:"doug",mimeType:file.type,sizeBytes:file.size,visibility:kind==="tune_revision"||kind==="parameter_pack"?"customer":"internal"})});
       const done=await finalize.json(); if(!finalize.ok)throw new Error(done.error||"File finalization failed");
