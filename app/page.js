@@ -7,6 +7,7 @@ const PROJECT_PATH = "/project/SP-1842";
 const PORTAL_PATH = "/portal/SP-1842";
 const WORKFLOW_PATH = "/workflow/SP-1842";
 const INTAKE_PATH = "/intake/SP-1846";
+const LOG_REVIEW_PATH = "/log-review/SP-1842";
 
 export default function Home() {
   useEffect(() => {
@@ -28,8 +29,9 @@ export default function Home() {
         const isCarlos = el.textContent?.includes("Carlos Mendez");
         if (!isAlex && !isCarlos) return;
 
-        const path = isAlex ? PROJECT_PATH : INTAKE_PATH;
-        const label = isAlex ? "Open Alex Rivera project SP-1842" : "Open Carlos Mendez intake SP-1846";
+        const isLogRow = isAlex && el.classList.contains("logRow");
+        const path = isLogRow ? LOG_REVIEW_PATH : isAlex ? PROJECT_PATH : INTAKE_PATH;
+        const label = isLogRow ? "Open Alex Rivera Rev 4 datalog review" : isAlex ? "Open Alex Rivera project SP-1842" : "Open Carlos Mendez intake SP-1846";
 
         el.dataset.demoLinked = "true";
         el.classList.add("demoProjectLink");
@@ -82,6 +84,7 @@ export default function Home() {
         <div className="demoProjectLauncherActions">
           <a href={PROJECT_PATH}>Tuner view</a>
           <a href={PORTAL_PATH}>Customer view</a>
+          <a className="logLink" href={LOG_REVIEW_PATH}>Log review</a>
           <a className="workflowLink" href={WORKFLOW_PATH}>Workflow</a>
           <a className="intakeLink" href={INTAKE_PATH}>New order</a>
         </div>
@@ -108,7 +111,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 10px;
-          min-width: 550px;
+          min-width: 625px;
           padding: 11px 13px;
           border: 1px solid #31513c;
           border-radius: 12px;
@@ -158,6 +161,11 @@ export default function Home() {
           background: #173522;
           border-color: #356846;
         }
+        .demoProjectLauncherActions a.logLink {
+          background: #16232d;
+          border-color: #31516a;
+          color: #82c7f2;
+        }
         .demoProjectLauncherActions a.workflowLink {
           background: #1c5f34;
           border-color: #2d8250;
@@ -181,6 +189,9 @@ export default function Home() {
             width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
+          }
+          .demoProjectLauncherActions a:last-child {
+            grid-column:1/-1;
           }
           .demoProjectLauncherActions a {
             text-align: center;
