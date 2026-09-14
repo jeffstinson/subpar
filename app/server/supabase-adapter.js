@@ -1,9 +1,9 @@
-import { assertSupabaseConfigured, getPersistenceReadiness } from "./env";
+import { assertSupabaseConfigured, getPersistenceReadiness, getSupabaseUrl } from "./env";
 
 function config() {
   assertSupabaseConfigured();
   return {
-    url: process.env.SUBPAR_SUPABASE_URL.replace(/\/$/, ""),
+    url: getSupabaseUrl().replace(/\/$/, ""),
     key: process.env.SUBPAR_SUPABASE_SERVICE_ROLE_KEY,
   };
 }
