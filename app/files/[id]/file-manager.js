@@ -29,7 +29,8 @@ export default function FileManager({project}){
     if(!file)return;
     setBusy(true);setStatus("Requesting secure upload ticket…");
     try{
-      const ticketRes=await fetch("/api/v1/storage/ticket",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload",project:project.projectNumber,kind,fileName:file.name,principal:"doug",revisionNumber:kind==="tune_revision"?Number(project.currentRevision||0)+1:undefined})});
+      const currentRevision=Number(project.currentRevision??project.currentRevisionNumber??0)||undefined;
+      const ticketRes=await fetch("/api/v1/storage/ticket",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload",project:project.projectNumber,kind,fileName:file.name,principal:"doug",revisionNumber:kind==="tune_revision"?currentRevision:undefined})});
       const ticketBody=await ticketRes.json(); if(!ticketRes.ok)throw new Error(ticketBody.error||"Upload ticket failed");
       const ticket=ticketBody.ticket;
       if(ticket.signedUrl){
