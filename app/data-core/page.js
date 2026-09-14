@@ -10,6 +10,7 @@ const apiRoutes = [
   ["GET","/api/v1/customers","Customer + vehicle/project relations"],
   ["GET","/api/v1/vehicles","Vehicle + customer/project relations"],
   ["GET","/api/v1/system","Data mode + integration state"],
+  ["GET","/api/v1/readiness","Persistence + environment readiness"],
   ["POST","/api/v1/actions","Guarded dry-run mutations"],
 ];
 
@@ -19,27 +20,27 @@ export default async function DataCorePage() {
   const alex = await getProjectById("SP-1842");
 
   const layers = [
-    [Database,"Normalized records","Customers, vehicles, orders and tune projects now have durable IDs and explicit relationships."],
+    [Database,"Normalized records","Customers, vehicles, orders and tune projects have durable IDs and explicit relationships."],
     [GitBranch,"Tune history","Requirements, revisions, logs, files, messages and events hang from the same project instead of separate screen state."],
-    [Workflow,"Repository boundary","UI/API code talks to one repository contract. Demo data can later be swapped for Supabase without redesigning every screen."],
-    [ShieldCheck,"Mutation guard","Writes are dry-run only in preview. No customer email, revision publish or status mutation can silently become live."],
-    [LockKeyhole,"RLS-first schema","The proposed Postgres migration enables row-level security before any customer browser access is allowed."],
-    [Radio,"Integration-ready","Webhook receipt/idempotency and sync-state tables are defined before Wix/Gmail ingestion is enabled."],
+    [Workflow,"Repository boundary","The same server contract now supports demo-memory or a dedicated Supabase adapter."],
+    [ShieldCheck,"Mutation guard","Reads can switch to Supabase while writes remain dry-run. No customer email, revision publish or status mutation silently becomes live."],
+    [LockKeyhole,"RLS-first schema","The Postgres migration enables row-level security before any customer browser access is allowed."],
+    [Radio,"Integration-ready","Webhook receipt/idempotency and sync-state tables exist before Wix/Gmail ingestion is enabled."],
   ];
 
   return <main className={styles.page}>
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}><ArrowLeft size={15}/> Dashboard</Link>
       <div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>DATA CORE</span></div></div>
-      <Link href="/audit" className={styles.audit}>Open product audit <ChevronRight size={13}/></Link>
+      <Link href="/persistence" className={styles.audit}>Persistence readiness <ChevronRight size={13}/></Link>
     </header>
 
     <section className={styles.hero}>
-      <div><span className={styles.eyebrow}>PRODUCTION FOUNDATION • PHASE 1</span><h1>One data model behind the whole tuning workflow.</h1><p>The current UI still uses synthetic records, but the app now has a server-side data boundary and normalized project model underneath it. This is the layer that Supabase, Wix, Gmail and file storage will plug into.</p></div>
+      <div><span className={styles.eyebrow}>PRODUCTION FOUNDATION • PHASE 2</span><h1>One data model. Swappable persistence.</h1><p>The app now has a normalized project model and repository boundary plus a server-only Supabase adapter. The preview remains synthetic, but the exact same API can read from real Postgres once the isolated Subpar environment is provisioned.</p></div>
       <div className={styles.mode}><span>DATA MODE</span><b>{system.configuredMode.toUpperCase()}</b><small>{system.mutationMode} mutations</small></div>
     </section>
 
-    <section className={styles.counts}>{Object.entries(system.counts).map(([key,value])=><div key={key}><span>{key.replace(/([A-Z])/g," $1")}</span><b>{value}</b></div>)}</section>
+    <section className={styles.counts}>{Object.entries(system.counts || {}).map(([key,value])=><div key={key}><span>{key.replace(/([A-Z])/g," $1")}</span><b>{value}</b></div>)}</section>
 
     <section className={styles.grid}>
       <div className={styles.main}>
@@ -55,6 +56,6 @@ export default async function DataCorePage() {
       </aside>
     </section>
 
-    <section className={styles.next}><div><span className={styles.eyebrow}>NEXT CONNECTION</span><h2>Swap the demo repository for isolated Supabase persistence.</h2><p>The database migration, environment boundaries and API contract are ready. Live mode stays off until the Subpar-only Supabase project and real-data approval are in place.</p></div><div className={styles.sequence}>{["Create isolated Supabase project","Run core migration","Add server-only adapter","Seed synthetic records","Then connect Wix + Gmail"].map((item,index)=><div key={item}><span>{index+1}</span><b>{item}</b></div>)}</div></section>
+    <section className={styles.next}><div><span className={styles.eyebrow}>NEXT CONNECTION</span><h2>Provision the isolated Subpar Supabase project, then prove parity with fake data.</h2><p>The adapter, deterministic synthetic seed, migration and environment checks are now ready. Real customer data stays off until that entire path is verified.</p></div><div className={styles.sequence}>{["Create isolated Supabase project","Run core migration","Set server credentials","Run deterministic demo seed","Switch reads to Supabase","Verify parity with writes still off"].map((item,index)=><div key={item}><span>{index+1}</span><b>{item}</b></div>)}</div></section>
   </main>;
 }
