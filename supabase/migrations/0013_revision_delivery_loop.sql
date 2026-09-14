@@ -34,9 +34,14 @@ alter table revision_deliveries enable row level security;
 drop policy if exists "internal read revision deliveries" on revision_deliveries;
 create policy "internal read revision deliveries" on revision_deliveries for select to authenticated using (subpar_is_internal());
 
+-- A customer log is created before its private object is uploaded so the storage ticket can bind to a log id.
+-- The file finalizer advances awaiting_upload -> uploaded and invokes the server-side parser.
+alter table logs drop constraint if exists logs_status_check;
+alter table logs add constraint logs_status_check check (status in ('awaiting_upload','uploaded','parsing','ready','needs_review','reviewed','rejected','error'));
+
 -- Customer acknowledgement and all mutations are server-brokered. Browser writes remain closed.
 insert into schema_migrations(version,name) values ('0013','revision_delivery_loop') on conflict(version) do nothing;
-insert into setup_checkpoints(checkpoint_key,status,detail) values ('revision_delivery_loop','pending','Validate review -> revision file -> QA -> approval -> portal/Gmail delivery -> customer acknowledgement -> next-log return against synthetic and Doug-approved examples.') on conflict(checkpoint_key) do nothing;
+insert into setup_checkpoints(checkpoint_key,status,detail) values ('revision_delivery_loop','pending','Validate review -> revision file -> QA -> approval -> portal/Gmail delivery -> customer acknowledgement -> private next-log upload -> parser -> Review Cockpit return.') on conflict(checkpoint_key) do nothing;
 update setup_checkpoints set detail='Migrations 0001–0013 define the current Subpar schema.',updated_at=now() where checkpoint_key='database_schema';
 
 comment on table revision_deliveries is 'Server-brokered delivery state for one revision. Customer visibility is unlocked only after tuner approval and delivery.';
