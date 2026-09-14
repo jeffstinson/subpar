@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import RootHome from "../page";
 
 const PROJECT_PATH = "/project/SP-1842";
+const PORTAL_PATH = "/portal/SP-1842";
 
 export default function Home() {
   useEffect(() => {
@@ -63,14 +64,17 @@ export default function Home() {
   return (
     <>
       <RootHome />
-      <a className="demoProjectLauncher" href={PROJECT_PATH}>
+      <div className="demoProjectLauncher">
         <span className="demoProjectLauncherDot" />
-        <span>
+        <span className="demoProjectLauncherCopy">
           <small>DEMO PROJECT</small>
           <strong>Alex Rivera · M340i · MHD Rev 4</strong>
         </span>
-        <b>Open →</b>
-      </a>
+        <div className="demoProjectLauncherActions">
+          <a href={PROJECT_PATH}>Tuner view</a>
+          <a href={PORTAL_PATH}>Customer view</a>
+        </div>
+      </div>
       <style jsx global>{`
         .demoProjectLink {
           cursor: pointer !important;
@@ -93,7 +97,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 10px;
-          min-width: 310px;
+          min-width: 390px;
           padding: 11px 13px;
           border: 1px solid #31513c;
           border-radius: 12px;
@@ -101,11 +105,6 @@ export default function Home() {
           box-shadow: 0 18px 55px rgba(0,0,0,.42);
           backdrop-filter: blur(16px);
           color: #eef4ef;
-          text-decoration: none;
-        }
-        .demoProjectLauncher:hover {
-          border-color: #4e8b61;
-          transform: translateY(-1px);
         }
         .demoProjectLauncherDot {
           width: 9px;
@@ -115,26 +114,39 @@ export default function Home() {
           background: #61bd7c;
           box-shadow: 0 0 14px rgba(97,189,124,.65);
         }
-        .demoProjectLauncher span:nth-child(2) {
-          flex: 1;
-        }
+        .demoProjectLauncherCopy { flex: 1; }
         .demoProjectLauncher small {
           display: block;
           color: #61bd7c;
-          font-size: 7px;
+          font-size: 8px;
           font-weight: 900;
           letter-spacing: .15em;
           margin-bottom: 3px;
         }
         .demoProjectLauncher strong {
           display: block;
-          font-size: 9px;
+          font-size: 10px;
           font-weight: 750;
         }
-        .demoProjectLauncher > b {
-          color: #8cc99d;
+        .demoProjectLauncherActions {
+          display: flex;
+          gap: 6px;
+        }
+        .demoProjectLauncherActions a {
+          color: #dce9df;
+          text-decoration: none;
+          border: 1px solid #38513f;
+          background: #162019;
+          border-radius: 8px;
+          padding: 7px 8px;
           font-size: 8px;
+          font-weight: 850;
           white-space: nowrap;
+        }
+        .demoProjectLauncherActions a:last-child {
+          background: #1c5f34;
+          border-color: #2d8250;
+          color: #fff;
         }
         @media (max-width: 760px) {
           .demoProjectLauncher {
@@ -142,6 +154,17 @@ export default function Home() {
             right: 12px;
             bottom: 12px;
             min-width: 0;
+            flex-wrap: wrap;
+          }
+          .demoProjectLauncherCopy { min-width: calc(100% - 28px); }
+          .demoProjectLauncherActions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+          }
+          .demoProjectLauncherActions a {
+            text-align: center;
+            padding: 8px;
           }
         }
       `}</style>
