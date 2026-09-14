@@ -1,5 +1,6 @@
 import "../globals.css";
 import "./extra.css";
+import "./mobile.css";
 
 export const metadata = {
   title: "Subpar OS — Tuning Dashboard",
