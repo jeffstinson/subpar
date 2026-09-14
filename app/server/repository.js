@@ -101,7 +101,14 @@ export async function getReadinessData() {
       "supabase/migrations/0002_identity_storage.sql",
       "supabase/migrations/0003_access_hardening.sql",
       "supabase/migrations/0004_integration_staging.sql",
+      "supabase/migrations/0005_go_live_imports.sql",
+      "supabase/migrations/0006_intake_activation.sql",
+      "supabase/migrations/0007_provisioning_state.sql",
+      "supabase/migrations/0008_customer_intake_activation.sql",
+      "supabase/migrations/0009_intake_handoff_queue.sql",
+      "supabase/migrations/0010_vehicle_platform_intelligence.sql",
     ],
+    schemaHead: "0010_vehicle_platform_intelligence",
     syntheticSeed: "supabase/seed/0001_demo.sql",
   };
 }
