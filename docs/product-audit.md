@@ -4,130 +4,230 @@ Date: 2026-09-14
 
 ## Audit scope
 
-Reviewed the public demo architecture and all current workflow routes in `jeffstinson/subpar` with the goal of turning the product into one coherent working dashboard for Doug Talmadge.
+Reviewed the current Subpar OS demo after the premium BMW-focused redesign, including the main dashboard, Vehicle Garage, mobile behavior, intake/project/log/revision/customer/closeout flows, navigation, visual consistency, synthetic data boundaries, asset strategy, calculator logic, deployment health and production-readiness gaps.
 
-## What was fixed in this pass
+This audit intentionally separates **demo quality** from **production readiness**. The current build is suitable for Doug Talmadge to evaluate the workflow and product direction, but real customer/tune data remains gated.
 
-### 1. Unified the dashboard
-The old main screen was a large legacy component wrapped by `app/page.js`, with DOM mutation used to make selected demo rows clickable. That was brittle and hard to extend.
+---
 
-The new `app/page.js` is now the actual dashboard shell with explicit state/navigation and proper links/actions. No DOM observer is required to make the primary dashboard usable.
+## Executive result
 
-### 2. Centralized synthetic data
-Created `app/lib/demo-data.js` so customers, vehicles, projects, messages, integrations, automations and dashboard metrics are no longer scattered across multiple top-level dashboard constants.
+### Product / design: PASS for stakeholder preview
+The application now reads as one premium BMW tuning operating system rather than a collection of wireframes. The dashboard, queue, garage, intake, log review, revision delivery, customer portal and closeout tell one coherent story.
 
-Deep workflow pages still contain purpose-built synthetic data because they are scenario demos, but the main operating dashboard now has one source for its records.
+### Workflow completeness: PASS for synthetic end-to-end evaluation
+A tune can be followed visually from paid order through intake, project creation, datalog review, revision delivery, customer handoff and final closeout.
 
-### 3. Connected the major workflows
-The dashboard now exposes every important phase:
+### Production data layer: NOT YET ENABLED by design
+Persistence, authentication, file storage, Wix/Gmail connections and tuning-platform ingestion are intentionally not live yet.
 
-1. New order / intake
-2. Active tuner project
-3. Datalog review
-4. Revision creation / delivery
-5. Customer portal
-6. Tuner/customer handoff simulation
-7. Final closeout / archive
-8. Automation rules
+---
 
-### 4. Made the main dashboard functional
-Working demo interactions now include:
-- queue filtering
-- priority ownership (`Doug` vs `Customer`)
-- global search
-- clickable notifications
-- customer message selection and demo replies
-- generic project drawer for all synthetic queue records
-- new-tune modal
-- E85 calculation
-- customer / vehicle / portal / archive views
-- integration readiness view
-- production-readiness audit view
-- deep workflow launcher
+## Changes completed in this audit pass
 
-### 5. Added app-level resilience
-Added:
-- `app/loading.js`
-- `app/error.js`
-- `app/not-found.js`
-- `/api/health`
+### Premium visual system
+- Main dashboard uses a darker automotive presentation with restrained Subpar green.
+- Vehicle Garage uses large photography-driven cards and a dedicated vehicle detail surface.
+- Main information hierarchy is clearer: status, owner, next action, vehicle, platform, fuel and revision.
+- Deep workflow routes receive a matching premium visual overlay through `app/premium-flows.css`.
+- Mobile layouts remain available for the dashboard and deep workflow pages.
 
-These give the demo intentional loading, failure recovery, bad-route behavior and a small deployment-health surface.
+### Chassis-aware E85 calculator
+Added a dedicated `/calculator` route with a maintained vehicle/tank database in `app/lib/fuel-vehicles.js`.
 
-### 6. Removed duplicate legacy app shells
-The superseded root-level `page.js` and `layout.js` were deleted after the new `app/` dashboard stopped importing them. The repository now has one active dashboard shell instead of two competing implementations.
+The calculator now supports:
+- BMW/Toyota model + chassis selection.
+- Factory fuel-tank capacity loaded automatically.
+- Model year and engine-family context.
+- Manual `My car isn’t listed` mode.
+- Current gallons in tank.
+- Current ethanol percentage.
+- Actual measured E85 percentage.
+- Pump-gas ethanol percentage.
+- Target blend presets and custom target.
+- Gallon and liter outputs.
+- Quarter / half / three-quarter / full quick volume controls.
+- Achievability detection instead of silently clamping an impossible target.
+- Final estimated blend verification.
 
-### 7. Preserved data isolation
-No real customer records, tune files, credentials or connected service data were introduced. The dashboard explicitly distinguishes demo readiness from production connectivity.
+Vehicle families currently covered:
+- E9X / F3X / G20 3 Series performance cars.
+- F22/F23/G42 M235i/M240i.
+- F87/G87 M2.
+- F80/G80 M3.
+- F82/F83/G82/G83 M4.
+- G30 540i/M550i and F90 M5.
+- G01/G02 X3/X4 M40i.
+- F97/F98 X3M/X4M.
+- G05/G06 X5/X6 40i.
+- F95/F96 X5M/X6M.
+- G29 Z4 M40i.
+- A90/A91 Toyota GR Supra 3.0.
+
+Tank capacities were cross-checked against published BMW Group / Toyota specifications for the representative chassis families used by the calculator. Manual mode remains available because usable volume can vary with modified tanks/fuel cells and some market-specific configurations.
 
 ---
 
 ## Route inventory
 
-| Route | Purpose | Current state |
+| Route | Purpose | Audit state |
 | --- | --- | --- |
-| `/` | Unified internal tuning dashboard | Working demo |
-| `/preview` | Shareable Doug-facing preview | Working demo |
-| `/mobile` | Mobile command center | Working demo |
-| `/automations` | Vehicle-aware automation studio | Working demo |
-| `/intake/SP-1846` | New Wix order → intake → compatibility | Working demo |
-| `/project/SP-1842` | Full internal tune project | Working demo |
-| `/log-review/SP-1842` | Log review / comparison / decision | Working demo |
-| `/revision/SP-1842` | Revision build and delivery | Working demo |
-| `/portal/SP-1842` | Customer-facing tune portal | Working demo |
-| `/workflow/SP-1842` | Tuner/customer state handoff simulator | Working demo |
-| `/closeout/SP-1842` | Final QA / archive / reopen | Working demo |
-| `/api/health` | Demo deployment / integration-mode health | Working |
+| `/` | Unified internal tuning dashboard | PASS |
+| `/preview` | Shareable Doug-facing product preview | PASS |
+| `/mobile` | Mobile command center | PASS |
+| `/automations` | Vehicle-aware automation studio | PASS / synthetic |
+| `/calculator` | Chassis-aware E85 calculator | PASS |
+| `/intake/SP-1846` | Paid order → intake → compatibility | PASS / synthetic |
+| `/project/SP-1842` | Internal tune project workspace | PASS / synthetic |
+| `/log-review/SP-1842` | Log review / comparison / decision | PASS / synthetic |
+| `/revision/SP-1842` | Revision creation + delivery | PASS / synthetic |
+| `/portal/SP-1842` | Customer-facing portal | PASS / synthetic |
+| `/workflow/SP-1842` | Tuner/customer handoff simulator | PASS / synthetic |
+| `/closeout/SP-1842` | Final QA / archive / reopen | PASS / synthetic |
+| `/api/health` | Deployment/integration-mode health | PASS |
 
 ---
 
 ## UX audit
 
-### Strong now
-- Tuner-first question: “What needs Doug right now?”
-- One dashboard spans MHD, bootmod3 and EcuTek.
-- Customer and vehicle records are visible as durable objects.
-- Queue ownership is explicit.
-- Deep workflow screens are purpose-built instead of generic CRUD pages.
-- Customer portal hides tuner-only reasoning.
-- Mobile command center exists separately from desktop.
-- Closeout preserves history rather than deleting a project from the workflow.
-- Every synthetic queue item has a usable destination; Alex/Carlos remain the deepest modeled scenarios.
+### Strong
+- The first question remains tuner-first: **what needs Doug right now?**
+- Queue ownership clearly distinguishes Doug vs customer waiting states.
+- Vehicle identity is first-class rather than buried under an order number.
+- MHD, bootmod3 and EcuTek can share one operational queue without pretending they are the same platform.
+- Garage photography materially improves customer/vehicle recognition.
+- Customer portal removes internal tuner notes and raw automation detail.
+- Revision and closeout screens preserve immutable history rather than overwriting the previous state.
+- Mobile command view supports a fast “check what needs attention” workflow.
+- The dedicated calculator now behaves like a BMW tuner utility instead of a generic math form.
 
-### Still production work
-- Deep workflow pages are separate scenario states rather than reading one persistent project record.
-- Some workflow buttons intentionally simulate actions with local React state/toasts.
-- Generic queue records use a project drawer; only the Alex/Carlos scenarios have fully modeled deep routes.
-- Customer authentication and authorization are not implemented.
-- File controls are UI-only.
+### UX debt / recommendations
+1. **Route-per-view architecture:** several main dashboard sections still use local SPA state instead of first-class URLs. Deep workflow routes already use real URLs. Queue, Garage, Messages, Customers, Integrations and Audit should eventually become route-addressable too.
+2. **Typography floor:** premium layouts still use some 8–9px metadata labels. Keep the condensed uppercase style, but raise important operational text to a minimum ~10–11px on desktop and ~11–12px on mobile.
+3. **Keyboard/accessibility:** most clickable surfaces are buttons/links, but a later accessibility pass should add labels/tooltips to icon-only controls and verify focus states on every custom card.
+4. **Vehicle photo consistency:** current dashboard photography is externally hosted and visually strong, but a production build should use a curated, licensed, locally controlled image set so URLs/crops cannot change unexpectedly.
+5. **Time-aware greeting:** dashboard greeting is currently presentation copy rather than a timezone-aware value. Make it dynamic once user/profile settings are persistent.
+
+---
+
+## Functional audit
+
+### Main dashboard
+PASS for demo.
+
+Working:
+- Global search.
+- Tune queue filters.
+- New tune modal.
+- Notifications.
+- Activity feed.
+- Vehicle Garage cards.
+- Order/intake visibility.
+- Customer ownership states.
+
+Still synthetic:
+- Sync activity.
+- Revenue metrics.
+- New tune persistence.
+- Notification read state.
+
+### Vehicle Garage
+PASS for demo.
+
+Working:
+- Photography-led cards.
+- Vehicle search/filter presentation.
+- Customer, chassis, engine, platform and status context.
+- Deep-link behavior to modeled projects.
+
+Production gap:
+- Vehicle records are not yet backed by persistent customer/vehicle tables.
+- Vehicle photos should eventually be customer-uploaded or curated per chassis rather than remote stock URLs.
+
+### E85 calculator
+PASS after rebuild.
+
+Logic safeguards:
+- Current fuel is capped at selected tank capacity.
+- Tank space is calculated automatically.
+- Blend equation accounts for ethanol already present in the tank.
+- Pump gasoline ethanol percentage is not assumed to be fixed.
+- “E85” percentage is editable.
+- Impossible fill-to-full targets are surfaced with an achievable E-range rather than returning a misleading clamped result.
+- Manual tank mode covers unlisted or modified cars.
+
+Important product note:
+The result is a fuel-mixing estimate. It should not imply that a given ethanol content is safe for a customer’s tune, fuel system or hardware. Tune/fuel compatibility remains Doug’s decision.
 
 ---
 
 ## Technical audit
 
 ### Pass
-- Next.js App Router is active through `app/`.
+- Next.js App Router under `app/` is the active application.
 - Vercel project remains isolated as `subpar`.
-- Current Next.js version is 15.5.24.
-- Dashboard no longer depends on the old root `page.js` wrapper.
-- Superseded root `page.js` and `layout.js` were removed.
-- Main dashboard data is centralized in `app/lib/demo-data.js`.
-- New dashboard code is scoped with `os-` CSS classes to avoid collisions with older deep-demo styles.
-- Responsive desktop/tablet/mobile rules are present.
+- Next.js remains on 15.5.24.
+- Duplicate root app shell was removed.
+- Main synthetic dataset is centralized in `app/lib/demo-data.js`.
+- Fuel/chassis presets are isolated in `app/lib/fuel-vehicles.js` rather than embedded in UI code.
 - Loading/error/not-found boundaries exist.
-- A no-cache `/api/health` route reports demo mode and disconnected integration state.
+- `/api/health` is present.
+- Main dashboard styling is scoped with `os-` classes.
+- Deep flow visual polish is layered separately rather than rewriting all workflow behavior.
 
-### Cleanup debt
-- `app/subpar-logo.png/route.js` is an unusual compatibility route used because the logo binary lives at repository root instead of `public/`. Move the actual logo into `public/` in a later binary-asset cleanup.
-- Older `globals.css`, `app/extra.css` and `app/mobile.css` remain because deep demo routes still use those styles. Do not remove them until every deep screen has been migrated to the shared design system.
-- Deep scenario pages still own local synthetic state. Their next refactor should read from a shared server-backed project record once persistence exists.
+### Technical debt
+1. `app/subpar-logo.png/route.js` remains a compatibility redirect because the logo binary is not yet in a conventional `public/` asset location.
+2. Vehicle photos currently use remote Unsplash URLs and regular `<img>` elements. Production should move to locally controlled/licensed assets and `next/image` where appropriate.
+3. Deep workflow screens still own their own local scenario state instead of reading one shared project object.
+4. Some main dashboard views are local state tabs rather than route segments.
+5. There is no automated test suite yet for workflow transitions or calculator math.
+6. No production telemetry/error reporting is connected yet.
+
+---
+
+## Security / data audit
+
+### Current demo state: LOW DATA RISK
+- Synthetic customer data only.
+- No Wix credentials.
+- No Gmail OAuth tokens.
+- No tune files from real customers.
+- No real datalogs.
+- No customer authentication surface exposed as if it were secure.
+
+### Required before live data
+- Isolated Subpar Supabase project.
+- Internal authentication for Doug/team.
+- Customer portal authentication or expiring magic-link model.
+- Row-level authorization.
+- Server-side credential storage only.
+- Storage access policies for tune files/logs.
+- Audit events for file access, revision delivery and automated messages.
+- Webhook signature verification.
+- Idempotent order/event processing.
+- Rate limits on externally accessible endpoints.
+- Backup/recovery procedure.
+
+---
+
+## Performance audit
+
+### Current
+Acceptable for stakeholder preview.
+
+### Before production
+- Replace externally hosted garage photos with optimized controlled assets.
+- Adopt `next/image` for large automotive photography.
+- Lazy-load off-screen vehicle imagery.
+- Route-split large operational screens instead of keeping every dashboard view in one client bundle.
+- Move large synthetic/static datasets out of the root client component as server-backed data becomes available.
+- Monitor bundle size after integrations and charting libraries are added.
 
 ---
 
 ## Production backend required
 
 ### Database
-Create an isolated Subpar Supabase project with durable tables around:
 - customers
 - vehicles
 - orders
@@ -145,85 +245,68 @@ Create an isolated Subpar Supabase project with durable tables around:
 
 ### Identity
 - Doug/internal auth
-- customer account or secure magic-link portal auth
-- row-level access boundaries
-- internal-only vs customer-visible fields
+- team roles later if needed
+- customer portal authentication
+- internal-only vs customer-visible field boundaries
 
 ### Files
-Isolated Subpar storage buckets for:
+Separate Subpar storage for:
 - stock/source files
 - tune revisions
 - datalogs
 - parameter packs
 - customer attachments
 
-Files should be immutable/versioned where appropriate and linked to the project/revision that produced them.
-
 ### Wix
 - paid-order webhook
 - customer matching
-- tune-product mapping
+- product mapping
 - idempotent project creation
-- order/customer reconciliation
+- order reconciliation
 
 ### Gmail
 - Doug OAuth
-- customer-thread matching
-- outbound sends through Doug's mailbox
-- inbound message sync
+- thread matching
+- inbound/outbound sync
 - EcuTek alert parsing
-- durable message IDs to avoid duplicates
+- durable provider message IDs
 
-### Log workflow
-- CSV parser
-- MHD channel aliases
-- validation against Doug's versioned parameter packs
-- metric normalization
-- flags and comparisons
-- Datazap URL association
+### Log pipeline
+- MHD CSV parser first
+- channel alias normalization
+- versioned parameter-pack validation
+- metric/flag extraction
+- Datazap association
 - BM3/EcuTek ingestion strategy
 
 ### Automation engine
-See `docs/automation-spec.md`.
-
 Production rules need:
 - enable/disable
-- dry-run mode
-- idempotency keys
+- dry-run
+- idempotency key
 - audit trail
-- rule versioning
-- retry/error state
+- versioning
+- retry state
 - manual override
-- visible reason for every action
-
-### Reliability
-- webhook/event idempotency
-- durable job queue
-- retries with caps
-- sync locks where needed
-- integration health/status
-- structured audit events
-- alerting for failed ingestion
+- explanation of why each rule fired
 
 ---
 
-## Recommended production order
+## Recommended next production order
 
-1. Doug validates the full synthetic workflow and terminology.
-2. Complete NDA/data gate.
-3. Create isolated Supabase database/auth/storage.
-4. Move shared synthetic model to typed server-backed project records.
-5. Connect Wix paid orders and idempotent intake creation.
-6. Connect Gmail sync/send.
-7. Add file storage and revision/log upload paths.
-8. Implement MHD-first parser + parameter-pack validation.
-9. Persist automation rules/runs.
-10. Add BM3/EcuTek/Datazap ingestion paths.
-11. Replace remaining local-state demo actions with server mutations.
-12. Add production telemetry, audit logging and backup/recovery procedures.
+1. Doug validates this premium synthetic build and terminology.
+2. Complete the NDA/data gate.
+3. Create isolated Supabase auth/database/storage.
+4. Convert dashboard tabs to first-class routes while moving data server-side.
+5. Persist customers/vehicles/orders/projects.
+6. Connect Wix paid orders.
+7. Connect Gmail sync/send.
+8. Implement storage for stock files, revisions and logs.
+9. Build MHD-first parser + parameter pack validation.
+10. Persist automation rules and runs.
+11. Add BM3/EcuTek/Datazap ingestion paths.
+12. Add telemetry, automated tests, backups and recovery procedures.
 
-## Definition of “full working dashboard” for this stage
+## Current conclusion
 
-The preview is now full enough for Doug to evaluate the product as one operating system: every lifecycle phase has a working screen, all top-level operational areas exist, the main dashboard is connected, and synthetic interactions behave coherently.
-
-It is not yet a production CRM/tuning system because persistence, authentication, file storage and external integrations are intentionally not connected. Those should only be added after Doug accepts the workflow and the real-data gate is cleared.
+The current Vercel build is now strong enough to show Doug as a cohesive product concept and workflow prototype. The highest-value next work is persistence and real integrations—not adding more disconnected mock screens. Design refinement can continue in parallel, especially typography, controlled vehicle photography and route-level navigation.
