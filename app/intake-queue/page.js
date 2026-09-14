@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ChevronRight, ClipboardCheck, ShieldCheck } from "lucide-react";
 import { listIntakeRequests } from "../server/intake";
 import { getIntakeHandoffState } from "../server/intake-handoff";
-import { resolveVehicleIntelligence } from "../lib/vehicle-intelligence";
+import { resolveVehicleIntelligenceServer } from "../server/intelligence-store";
 import IntakeQueueClient from "./intake-queue-client";
 import styles from "./intake-queue.module.css";
 
@@ -12,7 +12,9 @@ export default async function IntakeQueuePage(){
     let handoff={status:"unknown"};
     try{handoff=await getIntakeHandoffState(intake.id)}catch{}
     const payload={...(intake.vehiclePayload||{}),platform:intake.vehiclePayload?.platform||intake.platform||""};
-    return {...intake,handoff,intelligence:resolveVehicleIntelligence(payload)};
+    let intelligence;
+    try{intelligence=await resolveVehicleIntelligenceServer(payload)}catch{intelligence={state:"review_required",warnings:["Vehicle intelligence lookup failed; keep manual review enabled."],requirements:[],automations:[]}}
+    return {...intake,handoff,intelligence};
   }));
   return <main className={styles.page}>
     <header className={styles.topbar}><Link href="/" className={styles.back}><ArrowLeft size={15}/>Dashboard</Link><div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>INTAKE QUEUE</span></div></div><div className={styles.links}><Link href="/intelligence">Vehicle Intelligence <ChevronRight size={13}/></Link><Link href="/outbound">Approval Queue <ChevronRight size={13}/></Link><Link href="/messages">Messages <ChevronRight size={13}/></Link></div></header>
