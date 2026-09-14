@@ -1,4 +1,5 @@
-import { getPersistenceReadiness } from "./env";
+import { getAuthMode, getAuthReadiness, getPersistenceReadiness } from "./env";
+import { getSupabaseServerClient } from "./supabase-server";
 
 export const INTERNAL_ROLES = ["owner", "tuner", "staff"];
 export const PRINCIPAL_TYPES = ["internal", "customer", "system"];
@@ -86,22 +87,85 @@ export function canAccessFile(principal, file, project) {
   return principal.type === "internal" && can(principal, "file.internal.read");
 }
 
+function bearerToken(request) {
+  const value = request?.headers?.get?.("authorization") || "";
+  return value.toLowerCase().startsWith("bearer ") ? value.slice(7).trim() : null;
+}
+
+export async function resolvePrincipalFromRequest(request, { demoFallback = null } = {}) {
+  const authMode = getAuthMode();
+
+  if (authMode === "demo") {
+    const key = request?.headers?.get?.("x-subpar-demo-principal") || demoFallback;
+    return key ? demoPrincipals[key] || null : null;
+  }
+
+  if (authMode !== "supabase") return null;
+  const token = bearerToken(request);
+  if (!token) return null;
+
+  const supabase = getSupabaseServerClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  const user = userData?.user;
+  if (userError || !user) return null;
+
+  const { data: internalRows, error: internalError } = await supabase
+    .from("internal_users")
+    .select("id,display_name,role,active")
+    .eq("auth_user_id", user.id)
+    .eq("active", true)
+    .limit(1);
+  if (internalError) throw new Error(`Unable to resolve internal identity: ${internalError.message}`);
+  if (internalRows?.length) {
+    const row = internalRows[0];
+    return {
+      id: user.id,
+      type: "internal",
+      role: row.role,
+      displayName: row.display_name,
+      email: user.email,
+      membershipId: row.id,
+    };
+  }
+
+  const { data: portalRows, error: portalError } = await supabase
+    .from("customer_portal_users")
+    .select("id,customer_id,active")
+    .eq("auth_user_id", user.id)
+    .eq("active", true)
+    .limit(1);
+  if (portalError) throw new Error(`Unable to resolve customer identity: ${portalError.message}`);
+  if (portalRows?.length) {
+    const row = portalRows[0];
+    return {
+      id: user.id,
+      type: "customer",
+      role: "customer",
+      displayName: user.user_metadata?.full_name || user.email,
+      email: user.email,
+      customerId: row.customer_id,
+      portalMembershipId: row.id,
+    };
+  }
+
+  return null;
+}
+
 export function getAccessReadiness() {
   const persistence = getPersistenceReadiness();
-  const publicAuthConfigured = Boolean(
-    (process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_URL || process.env.SUBPAR_SUPABASE_URL) &&
-    process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_ANON_KEY
-  );
-
+  const auth = getAuthReadiness();
   return {
     mode: persistence.mode,
-    authProvider: persistence.mode === "supabase" ? "supabase-auth" : "demo-principals",
-    publicAuthConfigured,
+    authMode: auth.mode,
+    authProvider: auth.mode === "supabase" ? "supabase-auth" : "demo-principals",
+    publicAuthConfigured: auth.publicAuthConfigured,
     internalRoles: INTERNAL_ROLES,
     customerPortalIdentity: "modeled",
     permissionCount: Object.keys(PERMISSIONS).length,
     defaultDeny: true,
-    realSessionsEnabled: persistence.mode === "supabase" && publicAuthConfigured,
+    realSessionsEnabled: auth.mode === "supabase" && auth.publicAuthConfigured,
+    internalAuthEnabled: auth.internalAuthEnabled,
+    portalAuthEnabled: auth.portalAuthEnabled,
     currentPreviewPrincipal: demoPrincipals.doug,
     customerPreviewPrincipal: demoPrincipals.alex,
   };
