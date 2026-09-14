@@ -10,19 +10,38 @@ function loginRedirect(request,audience){
   return NextResponse.redirect(url);
 }
 
-export function middleware(request){
+async function verifySupabaseAudience(token,audience){
+  const base=(process.env.SUBPAR_SUPABASE_URL||process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_URL||"").replace(/\/$/,"");
+  const anon=process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_ANON_KEY||"";
+  if(!base||!anon||!token)return false;
+  try{
+    const auth=await fetch(`${base}/auth/v1/user`,{headers:{apikey:anon,Authorization:`Bearer ${token}`},cache:"no-store"});
+    if(!auth.ok)return false;
+    const user=await auth.json();
+    if(!user?.id)return false;
+    const table=audience==="internal"?"internal_users":"customer_portal_users";
+    const select=audience==="internal"?"id,role,active":"id,customer_id,active";
+    const membership=await fetch(`${base}/rest/v1/${table}?auth_user_id=eq.${encodeURIComponent(user.id)}&active=eq.true&select=${encodeURIComponent(select)}&limit=1`,{
+      headers:{apikey:anon,Authorization:`Bearer ${token}`,Accept:"application/json"},cache:"no-store"
+    });
+    if(!membership.ok)return false;
+    const rows=await membership.json();
+    return Array.isArray(rows)&&rows.length>0;
+  }catch{return false;}
+}
+
+export async function middleware(request){
   const path=request.nextUrl.pathname;
   if(path.startsWith("/login")||path.startsWith("/auth")||path.startsWith("/api")||path.startsWith("/_next")||path.startsWith("/logout")) return NextResponse.next();
-  const session=request.cookies.get("subpar_access_token")?.value;
-  const principalType=request.cookies.get("subpar_principal_type")?.value;
+  const token=request.cookies.get("subpar_access_token")?.value;
 
-  if(path.startsWith("/portal/") && process.env.SUBPAR_PORTAL_AUTH_ENABLED === "true"){
-    if(!session||principalType!=="customer") return loginRedirect(request,"customer");
+  if(path.startsWith("/portal/")&&process.env.SUBPAR_PORTAL_AUTH_ENABLED==="true"){
+    if(!token||!(await verifySupabaseAudience(token,"customer"))) return loginRedirect(request,"customer");
   }
 
   const internal=path==="/"||internalPrefixes.some(prefix=>path.startsWith(prefix));
-  if(internal && process.env.SUBPAR_INTERNAL_AUTH_ENABLED === "true"){
-    if(!session||principalType!=="internal") return loginRedirect(request,"internal");
+  if(internal&&process.env.SUBPAR_INTERNAL_AUTH_ENABLED==="true"){
+    if(!token||!(await verifySupabaseAudience(token,"internal"))) return loginRedirect(request,"internal");
   }
 
   return NextResponse.next();
