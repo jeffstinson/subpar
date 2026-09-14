@@ -12,16 +12,17 @@ function loginRedirect(request,audience){
 
 export function middleware(request){
   const path=request.nextUrl.pathname;
-  if(path.startsWith("/login")||path.startsWith("/auth")||path.startsWith("/api")||path.startsWith("/_next")) return NextResponse.next();
+  if(path.startsWith("/login")||path.startsWith("/auth")||path.startsWith("/api")||path.startsWith("/_next")||path.startsWith("/logout")) return NextResponse.next();
   const session=request.cookies.get("subpar_access_token")?.value;
+  const principalType=request.cookies.get("subpar_principal_type")?.value;
 
-  if(path.startsWith("/portal/") && process.env.SUBPAR_PORTAL_AUTH_ENABLED === "true" && !session){
-    return loginRedirect(request,"customer");
+  if(path.startsWith("/portal/") && process.env.SUBPAR_PORTAL_AUTH_ENABLED === "true"){
+    if(!session||principalType!=="customer") return loginRedirect(request,"customer");
   }
 
   const internal=path==="/"||internalPrefixes.some(prefix=>path.startsWith(prefix));
-  if(internal && process.env.SUBPAR_INTERNAL_AUTH_ENABLED === "true" && !session){
-    return loginRedirect(request,"internal");
+  if(internal && process.env.SUBPAR_INTERNAL_AUTH_ENABLED === "true"){
+    if(!session||principalType!=="internal") return loginRedirect(request,"internal");
   }
 
   return NextResponse.next();
