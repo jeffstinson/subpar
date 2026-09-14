@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useEffect,useMemo,useState } from "react";
-import { AlertTriangle,Check,CheckCircle2,ChevronRight,Database,History,Loader2,Play,RefreshCw,ServerCog,ShieldAlert,ShieldCheck,Wifi } from "lucide-react";
+import { AlertTriangle,Check,CheckCircle2,ChevronRight,Database,History,Loader2,Play,RefreshCw,ServerCog,ShieldAlert,Wifi } from "lucide-react";
 import styles from "./activation.module.css";
 
 function nice(value){return String(value||"—").replaceAll("_"," ")}
 function statusIcon(status){if(status==="pass")return <Check size={12}/>;if(status==="fail")return <ShieldAlert size={12}/>;if(status==="warn")return <AlertTriangle size={12}/>;return <span>–</span>}
+const importantCheckpoints=new Set(["activation_integrity","synthetic_end_to_end","provider_preflight","historical_reconciliation","wix_replay","gmail_history","outbound_email","production_activation"]);
 
 export default function ActivationClient(){
   const [payload,setPayload]=useState(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(""),[error,setError]=useState("");
@@ -15,10 +16,12 @@ export default function ActivationClient(){
   useEffect(()=>{load()},[]);
 
   async function run(includeProviderProbes){setBusy(includeProviderProbes?"providers":"audit");setError("");try{const r=await fetch("/api/v1/activation/audit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({includeProviderProbes,persist:true})});const b=await r.json();if(!r.ok)throw new Error(b.error||"Activation audit failed");setPayload(b)}catch(e){setError(e.message)}finally{setBusy("")}}
+  async function checkpoint(item,status){setBusy(`checkpoint:${item.checkpoint_key}`);setError("");try{const r=await fetch("/api/v1/activation/checkpoint",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({checkpointKey:item.checkpoint_key,status,detail:item.detail||""})});const b=await r.json();if(!r.ok)throw new Error(b.error||"Unable to update checkpoint");await load()}catch(e){setError(e.message)}finally{setBusy("")}}
 
   const audit=payload?.audit||{};
   const checks=audit.checks||[];
   const grouped=useMemo(()=>checks.reduce((acc,item)=>{(acc[item.category]??=[]).push(item);return acc},{}),[checks]);
+  const checkpoints=(audit.checkpoints||[]).filter(item=>importantCheckpoints.has(item.checkpoint_key));
   const phaseEntries=[
     ["Code foundation",audit.phases?.codeFoundation,"Synthetic end-to-end read path"],
     ["Infrastructure",audit.phases?.infrastructure,"Database, auth, storage, schema and integrity"],
@@ -53,6 +56,8 @@ export default function ActivationClient(){
 
       <aside className={styles.side}>
         <article className={styles.panel}><header><div><span>CUTOVER ORDER</span><h2>Green path</h2></div><Play size={17}/></header><div className={styles.sequence}>{(payload?.sequence||[]).map(step=><div key={step.step}><i>{step.step}</i><div><b>{step.label}</b><p>{step.detail}</p></div></div>)}</div></article>
+
+        <article className={styles.panel}><header><div><span>VERIFICATION LEDGER</span><h2>Cutover checkpoints</h2></div><CheckCircle2 size={17}/></header>{checkpoints.length?<div className={styles.checkpoints}>{checkpoints.map(item=>{const done=item.status==="passed"||item.status==="ready";const working=busy===`checkpoint:${item.checkpoint_key}`;return <div key={item.checkpoint_key}><div><span>{nice(item.checkpoint_key)}</span><b>{nice(item.status)}</b><p>{item.detail}</p>{item.verified_by&&<small>{item.verified_by}{item.verified_at?` · ${new Date(item.verified_at).toLocaleString()}`:""}</small>}</div><div className={styles.checkpointActions}>{!done&&<button disabled={Boolean(busy)} onClick={()=>checkpoint(item,"passed")}>{working?"Recording…":item.checkpoint_key==="production_activation"?"Activate":"Mark passed"}</button>}{done&&item.checkpoint_key!=="production_activation"&&<button className={styles.resetButton} disabled={Boolean(busy)} onClick={()=>checkpoint(item,"pending")}>Reset</button>}</div></div>})}</div>:<div className={styles.checkpointEmpty}>The durable checkpoint ledger appears after the isolated Supabase project and provisioning migrations are attached.</div>}</article>
 
         <article className={styles.panel}><header><div><span>CURRENT MANIFEST</span><h2>Runtime safety</h2></div><ServerCog size={17}/></header><div className={styles.manifest}><span><b>Schema head</b>{audit.manifest?.schemaHead||"—"}</span><span><b>Data mode</b>{audit.mode||"—"}</span><span><b>Mutation gate</b>{audit.manifest?.mutationsEnabled?"ON":"OFF"}</span><span><b>Real-data gate</b>{audit.manifest?.realDataApproved?"ON":"OFF"}</span><span><b>Provider probes</b>{audit.manifest?.providerProbesRequested?"Included":"Not requested"}</span><span><b>Audit persistence</b>{audit.persistence?.persisted?"Recorded":audit.persistence?.reason||"Preview only"}</span></div></article>
 
