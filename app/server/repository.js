@@ -6,60 +6,102 @@ import {
   listVehicles,
   systemSnapshot,
 } from "./demo-store";
+import {
+  supabaseCustomers,
+  supabaseDashboard,
+  supabaseProject,
+  supabaseProjects,
+  supabaseSystem,
+  supabaseVehicles,
+} from "./supabase-adapter";
+import { getDataMode, getPersistenceReadiness, mutationsEnabled } from "./env";
 import { previewTransition, stageForLegacyStatus } from "./workflow";
-
-export function getDataMode() {
-  return process.env.SUBPAR_DATA_MODE || "demo";
-}
-
-export function mutationsEnabled() {
-  return process.env.SUBPAR_MUTATIONS_ENABLED === "true";
-}
 
 function assertSupportedMode() {
   const mode = getDataMode();
-  if (mode !== "demo") {
-    throw new Error(`Subpar data mode '${mode}' is not configured yet. Live adapters remain intentionally gated.`);
+  if (mode !== "demo" && mode !== "supabase") {
+    throw new Error(`Unsupported Subpar data mode '${mode}'. Expected 'demo' or 'supabase'.`);
   }
+  return mode;
 }
 
+export { getDataMode, mutationsEnabled };
+
 export async function getDashboardData() {
-  assertSupportedMode();
-  return dashboardSnapshot();
+  const mode = assertSupportedMode();
+  return mode === "supabase" ? supabaseDashboard() : dashboardSnapshot();
 }
 
 export async function getProjects(filters = {}) {
-  assertSupportedMode();
-  return listProjects(filters);
+  const mode = assertSupportedMode();
+  return mode === "supabase" ? supabaseProjects(filters) : listProjects(filters);
 }
 
 export async function getProjectById(id) {
-  assertSupportedMode();
-  return getProject(id);
+  const mode = assertSupportedMode();
+  return mode === "supabase" ? supabaseProject(id) : getProject(id);
 }
 
 export async function getCustomers() {
-  assertSupportedMode();
-  return listCustomers();
+  const mode = assertSupportedMode();
+  return mode === "supabase" ? supabaseCustomers() : listCustomers();
 }
 
 export async function getVehicles() {
-  assertSupportedMode();
-  return listVehicles();
+  const mode = assertSupportedMode();
+  return mode === "supabase" ? supabaseVehicles() : listVehicles();
 }
 
 export async function getSystemData() {
-  assertSupportedMode();
+  const mode = assertSupportedMode();
+  const readiness = getPersistenceReadiness();
+
+  if (mode === "supabase") {
+    return {
+      ...(await supabaseSystem()),
+      configuredMode: mode,
+      mutationsEnabled: mutationsEnabled(),
+      workflowStateMachine: true,
+      persistenceReadiness: readiness,
+    };
+  }
+
   return {
     ...systemSnapshot(),
-    configuredMode:getDataMode(),
-    mutationsEnabled:mutationsEnabled(),
-    workflowStateMachine:true,
+    configuredMode: mode,
+    mutationsEnabled: mutationsEnabled(),
+    workflowStateMachine: true,
+    persistenceReadiness: readiness,
+  };
+}
+
+export async function getReadinessData() {
+  const readiness = getPersistenceReadiness();
+  let connectivity = "not-tested";
+  let connectivityError = null;
+
+  if (readiness.mode === "supabase" && readiness.supabaseConfigured) {
+    try {
+      const probe = await supabaseSystem();
+      connectivity = probe.connectivity;
+    } catch (error) {
+      connectivity = "error";
+      connectivityError = error.message;
+    }
+  }
+
+  return {
+    ...readiness,
+    connectivity,
+    connectivityError,
+    repositoryAdapter: readiness.mode === "supabase" ? "supabase-rest" : "demo-memory",
+    schemaMigration: "supabase/migrations/0001_core.sql",
+    syntheticSeed: "supabase/seed/0001_demo.sql",
   };
 }
 
 export async function previewAction(payload = {}) {
-  assertSupportedMode();
+  const mode = assertSupportedMode();
   const action = String(payload.action || "").trim();
   if (!action) throw new Error("action is required");
 
@@ -77,11 +119,11 @@ export async function previewAction(payload = {}) {
 
   let transition = null;
   if (action === "project.status.change") {
-    const project = getProject(payload.project);
+    const project = await getProjectById(payload.project);
     if (!project) throw new Error("project was not found");
     const to = payload.input?.stage;
     if (!to) throw new Error("input.stage is required for project.status.change");
-    transition = previewTransition({...project,stage:stageForLegacyStatus(project.status)},to);
+    transition = previewTransition({...project,stage:project.stage || stageForLegacyStatus(project.status)},to);
   }
 
   return {
@@ -91,7 +133,10 @@ export async function previewAction(payload = {}) {
     project:payload.project || null,
     input:payload.input || {},
     transition,
-    reason:"Synthetic demo mode prevents persistent mutations and outbound customer actions.",
+    adapter:mode === "supabase" ? "supabase-rest" : "demo-memory",
+    reason:mutationsEnabled()
+      ? "Persistent action handlers are not enabled in this phase; repository writes remain intentionally gated."
+      : "Mutation mode is disabled. No persistent write or outbound customer action was performed.",
     wouldCreateEvent:{
       type:action,
       actor:"Doug Talmadge",
