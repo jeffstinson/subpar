@@ -2,6 +2,7 @@ import { getReadinessData, getSystemData } from "../../server/repository";
 import { getAccessReadiness } from "../../server/access-control";
 import { getAuthReadiness } from "../../server/env";
 import { getStorageReadiness } from "../../server/storage";
+import { getIntegrationReadiness } from "../../server/integrations";
 
 export async function GET(){
   try {
@@ -9,6 +10,7 @@ export async function GET(){
     const auth = getAuthReadiness();
     const access = getAccessReadiness();
     const storage = getStorageReadiness();
+    const integrationStaging = getIntegrationReadiness();
     return Response.json({
       ok:true,
       service:"subpar-os",
@@ -20,6 +22,13 @@ export async function GET(){
       persistence:{adapter:readiness.repositoryAdapter,supabaseConfigured:readiness.supabaseConfigured,connectivity:readiness.connectivity,realDataGate:readiness.realDataGate},
       identity:{mode:auth.mode,provider:access.authProvider,publicAuthConfigured:auth.publicAuthConfigured,internalAuthEnabled:auth.internalAuthEnabled,portalAuthEnabled:auth.portalAuthEnabled,defaultDeny:access.defaultDeny},
       storage:{provider:storage.provider,privateByDefault:storage.privateByDefault,signedDownloads:storage.signedDownloads,signedUploads:storage.signedUploads,uploadFinalization:storage.uploadFinalization,ticketSecretConfigured:storage.ticketSecretConfigured,buckets:Object.values(storage.buckets)},
+      integrationStaging:{
+        realDataApproved:integrationStaging.realDataApproved,
+        stagingEnabled:integrationStaging.stagingEnabled,
+        wix:{signedIngressReady:integrationStaging.wix.readyForSignedIngress,applyEnabled:integrationStaging.wix.applyEnabled},
+        gmail:{readSyncReady:integrationStaging.gmail.readyForReadSync,outboundReady:integrationStaging.gmail.readyForOutbound,watchConfigured:integrationStaging.gmail.watchConfigured},
+        safety:integrationStaging.safety,
+      },
       normalizedCounts:system.counts || null,
       integrations:system.integrations,
       ndaGate:system.ndaGate,
