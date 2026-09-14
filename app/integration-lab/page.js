@@ -17,7 +17,7 @@ export default async function IntegrationLabPage(){
     <header className={styles.topbar}>
       <Link href="/" className={styles.back}><ArrowLeft size={15}/>Dashboard</Link>
       <div className={styles.brand}><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><b>SUBPAR OS</b><span>INTEGRATION LAB</span></div></div>
-      <div className={styles.toplinks}><Link href="/access">Access + Files <ChevronRight size={13}/></Link><a href="/api/v1/integrations/readiness">Readiness API <ChevronRight size={13}/></a></div>
+      <div className={styles.toplinks}><Link href="/go-live">Go Live Center <ChevronRight size={13}/></Link><Link href="/access">Access + Files <ChevronRight size={13}/></Link><a href="/api/v1/integrations/readiness">Readiness API <ChevronRight size={13}/></a></div>
     </header>
 
     <section className={styles.hero}>
@@ -73,6 +73,6 @@ export default async function IntegrationLabPage(){
       </aside>
     </section>
 
-    <section className={styles.next}><div><span className={styles.eyebrow}>NEXT AFTER SYNTHETIC PARITY</span><h2>Turn Wix ingestion on before Gmail sending.</h2><p>The safest order is signed Wix receipt/planning → synthetic database parity → Wix apply → Gmail read sync → Gmail draft persistence → finally explicit Gmail send. That keeps external writes at the very end instead of making email the first live integration.</p></div><div>{["Attach isolated Supabase","Run migration 0004","Enable signed Wix ingress only","Replay synthetic + test Wix events","Enable Wix apply after parity","Enable Gmail read sync","Outbound Gmail last"].map((step,index)=><p key={step}><i>{index+1}</i>{step}</p>)}</div></section>
+    <section className={styles.next}><div><span className={styles.eyebrow}>NEXT AFTER SYNTHETIC PARITY</span><h2>Use the Go Live Center for historical import and cutover.</h2><p>Signed event planning is now paired with resumable import batches, provider ID linkage, gated Wix persistence and Gmail thread hydration. The Go Live Center controls the historical → live handoff so Wix apply happens before Gmail sending.</p><Link href="/go-live" style={{display:"inline-flex",alignItems:"center",gap:6,color:"#72c989",fontSize:11,textDecoration:"none",fontWeight:800}}>Open Go Live Center <ChevronRight size={13}/></Link></div><div>{["Attach isolated Supabase","Run migrations 0001–0006","Dry-run Wix/Gmail history","Resolve conflicts and reconcile counts","Enable Wix signed ingress + apply","Enable Gmail read sync","Outbound Gmail last"].map((step,index)=><p key={step}><i>{index+1}</i>{step}</p>)}</div></section>
   </main>;
 }
