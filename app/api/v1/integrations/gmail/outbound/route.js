@@ -1,5 +1,7 @@
 import { can, canAccessProject, resolvePrincipalFromRequest } from "../../../../../server/access-control";
-import { approveGmailDraft, cancelGmailDraft, listGmailOutbound, queueGmailDraft, sendApprovedGmailDraft } from "../../../../../server/gmail-outbound";
+import { approveGmailDraft, cancelGmailDraft, listGmailOutbound, queueGmailDraft } from "../../../../../server/gmail-outbound";
+import { syncIntakeHandoffStatus } from "../../../../../server/intake-invite-send";
+import { sendApprovedOutboundAction } from "../../../../../server/outbound-dispatch";
 import { getProjectById } from "../../../../../server/repository";
 
 export async function GET(request){
@@ -41,18 +43,20 @@ export async function POST(request){
     if(action==="approve"){
       if(!can(principal,"message.approve"))return Response.json({ok:false,error:"Only owner/tuner can approve outbound email"},{status:403});
       const data=await approveGmailDraft(body.id,principal.displayName||principal.email);
+      await syncIntakeHandoffStatus(data);
       return Response.json({ok:true,data},{headers:{"Cache-Control":"no-store"}});
     }
 
     if(action==="send"){
       if(!can(principal,"message.provider_send"))return Response.json({ok:false,error:"Only owner/tuner can send through Gmail"},{status:403});
-      const data=await sendApprovedGmailDraft(body.id,principal.displayName||principal.email);
+      const data=await sendApprovedOutboundAction(body.id,principal.displayName||principal.email);
       return Response.json({ok:true,data},{headers:{"Cache-Control":"no-store"}});
     }
 
     if(action==="cancel"){
       if(!can(principal,"message.approve"))return Response.json({ok:false,error:"Only owner/tuner can cancel provider-bound email"},{status:403});
       const data=await cancelGmailDraft(body.id,principal.displayName||principal.email);
+      await syncIntakeHandoffStatus(data);
       return Response.json({ok:true,data},{headers:{"Cache-Control":"no-store"}});
     }
 
