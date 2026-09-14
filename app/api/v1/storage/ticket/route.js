@@ -22,6 +22,11 @@ function demoStorageLocation(project, file) {
   };
 }
 
+function revisionIdFor(project, revisionNumber) {
+  if (!revisionNumber) return null;
+  return project.revisions?.find(item => Number(item.number ?? item.revisionNumber) === Number(revisionNumber))?.id || null;
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -56,14 +61,28 @@ export async function POST(request) {
       if (!customerAllowed && !internalAllowed) {
         return Response.json({ ok: false, error: "Upload access denied" }, { status: 403 });
       }
+      if (!body.fileName) {
+        return Response.json({ ok: false, error: "fileName is required" }, { status: 400 });
+      }
       const ticket = await createSignedUpload({
         kind,
         projectNumber: project.projectNumber,
+        projectId: project.id,
         fileName: body.fileName,
         revisionNumber: body.revisionNumber,
+        revisionId: revisionIdFor(project, body.revisionNumber),
         logId: body.logId,
       });
-      return Response.json({ ok: true, principal: { type: principal.type, role: principal.role }, ticket }, { headers: { "Cache-Control": "no-store" } });
+      return Response.json({
+        ok: true,
+        principal: { type: principal.type, role: principal.role },
+        ticket,
+        next: {
+          step: "upload-then-finalize",
+          finalizeEndpoint: "/api/v1/storage/finalize",
+          note: "After the signed upload succeeds, submit the returned finalizeToken so Subpar OS can verify and register immutable file metadata.",
+        },
+      }, { headers: { "Cache-Control": "no-store" } });
     }
 
     return Response.json({ ok: false, error: "action must be upload or download" }, { status: 400 });
