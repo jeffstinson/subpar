@@ -9,6 +9,7 @@ const expectedTables = [
   "automation_rules","automation_runs","integration_sync_state","webhook_receipts","internal_users","customer_portal_users","external_links","outbound_actions",
   "import_batches","import_items","intake_requests","intake_access_tokens","integration_cutovers","schema_migrations","connection_tests","setup_checkpoints",
   "vehicle_catalog","logging_recipes","parameter_pack_profiles","platform_workflow_profiles","log_parser_profiles","log_review_sessions","log_annotations","external_log_sources","revision_deliveries",
+  "tune_cycles","project_closeouts","lifecycle_followups",
 ];
 
 function ms(start){return Math.max(0,Date.now()-start)}
