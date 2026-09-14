@@ -2,10 +2,11 @@ import Link from "next/link";
 import { ArrowLeft, Bot, ChevronRight, Cpu, Database, ShieldCheck, Sparkles } from "lucide-react";
 import IntelligenceClient from "./intelligence-client";
 import { getVehicleIntelligenceCatalogServer } from "../server/intelligence-store";
+import { validateVehicleIntelligence } from "../server/intelligence-validation";
 import styles from "./intelligence.module.css";
 
 export default async function IntelligencePage(){
-  const catalog=await getVehicleIntelligenceCatalogServer();
+  const [catalog,validation]=await Promise.all([getVehicleIntelligenceCatalogServer(),validateVehicleIntelligence()]);
   const summary=catalog.summary;
   return <main className={styles.page}>
     <header className={styles.topbar}>
@@ -16,11 +17,11 @@ export default async function IntelligencePage(){
 
     <section className={styles.hero}>
       <div><span className={styles.eyebrow}>CHASSIS → ENGINE → PLATFORM → WORKFLOW</span><h1>The car should configure the project.</h1><p>Subpar OS resolves the vehicle and tuning platform into the exact prerequisites, logging recipe, parameter-pack profile and automation path Doug expects. ROM/DME eligibility remains an explicit tuner approval—not an assumption.</p><div className={styles.heroMeta}><span><Database size={13}/>{summary.vehicles} curated chassis presets</span><span><Cpu size={13}/>{summary.engines.length} engine families</span><span><Bot size={13}/>{summary.platforms.length} tuning platforms</span><span><Database size={13}/>{catalog.source} source</span></div></div>
-      <div className={styles.score}><Sparkles size={21}/><span>INTELLIGENCE LAYER</span><b>DATA-DRIVEN</b><small>Manual approval remains the final gate</small></div>
+      <div className={styles.score}><Sparkles size={21}/><span>REGRESSION HEALTH</span><b>{validation.pass?`${validation.passed}/${validation.total} PASS`:`${validation.passed}/${validation.total} PASS`}</b><small>{validation.pass?"representative workflows resolve correctly":"one or more representative workflows need review"}</small></div>
     </section>
 
     <section className={styles.rules}><span><ShieldCheck size={13}/>Workflow-ready ≠ guaranteed ROM support</span><span><ShieldCheck size={13}/>Doug-owned packs stay versioned</span><span><ShieldCheck size={13}/>Requirements seed at project activation</span><span><ShieldCheck size={13}/>Manual fallback for unknown vehicles</span></section>
 
-    <IntelligenceClient vehicles={catalog.vehicles} source={catalog.source}/>
+    <IntelligenceClient vehicles={catalog.vehicles} source={catalog.source} validation={validation}/>
   </main>;
 }
