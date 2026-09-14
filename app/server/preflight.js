@@ -1,8 +1,8 @@
 import { getPersistenceReadiness } from "./env";
-import { getIntegrationReadiness, getGmailAccessToken } from "./integrations";
+import { getIntegrationReadiness } from "./integrations";
 import { getStorageReadiness, storageBuckets } from "./storage";
 import { getSupabaseServerClient } from "./supabase-server";
-import { getWixAccessToken, getWixReadReadiness } from "./wix-client";
+import { getWixReadReadiness } from "./wix-client";
 
 const expectedTables = [
   "customers","vehicles","orders","tune_projects","project_requirements","revisions","logs","files","conversations","messages","events",
@@ -11,6 +11,41 @@ const expectedTables = [
 ];
 
 function ms(start){return Math.max(0,Date.now()-start)}
+
+async function probeWixToken(){
+  const response=await fetch("https://www.wixapis.com/oauth2/token",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      grant_type:"client_credentials",
+      client_id:process.env.SUBPAR_WIX_APP_ID,
+      client_secret:process.env.SUBPAR_WIX_APP_SECRET,
+      instance_id:process.env.SUBPAR_WIX_INSTANCE_ID,
+    }),
+    cache:"no-store",
+  });
+  const raw=await response.json();
+  const data=raw?.access_token?raw:raw?.body?(typeof raw.body==="string"?JSON.parse(raw.body):raw.body):raw;
+  if(!response.ok||!data?.access_token)throw new Error(`Wix OAuth failed: ${data?.error_description||data?.error||raw?.message||response.status}`);
+  return data.access_token;
+}
+
+async function probeGmailToken(){
+  const response=await fetch("https://oauth2.googleapis.com/token",{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({
+      client_id:process.env.SUBPAR_GOOGLE_CLIENT_ID,
+      client_secret:process.env.SUBPAR_GOOGLE_CLIENT_SECRET,
+      refresh_token:process.env.SUBPAR_GOOGLE_REFRESH_TOKEN,
+      grant_type:"refresh_token",
+    }),
+    cache:"no-store",
+  });
+  const data=await response.json();
+  if(!response.ok||!data.access_token)throw new Error(`Gmail OAuth refresh failed: ${data.error_description||data.error||response.status}`);
+  return data.access_token;
+}
 
 export async function probeSupabaseSchema(){
   const readiness=getPersistenceReadiness();
@@ -69,9 +104,9 @@ export async function probeWixConnection(){
   if(process.env.SUBPAR_REAL_DATA_APPROVED!=="true")return {provider:"wix",status:"skipped",detail:"Real-data approval gate is closed",latencyMs:0};
   const start=Date.now();
   try{
-    const token=await getWixAccessToken();
-    return {provider:"wix",status:token?"pass":"fail",detail:token?"Site-scoped Wix OAuth token issued successfully":"Wix OAuth did not return a token",latencyMs:ms(start),tokenExposed:false};
-  }catch(error){return {provider:"wix",status:"fail",detail:error.message,latencyMs:ms(start),tokenExposed:false}}
+    const token=await probeWixToken();
+    return {provider:"wix",status:token?"pass":"fail",detail:token?"Site-scoped Wix OAuth token issued successfully":"Wix OAuth did not return a token",latencyMs:ms(start),tokenExposed:false,readEnabled:readiness.readEnabled};
+  }catch(error){return {provider:"wix",status:"fail",detail:error.message,latencyMs:ms(start),tokenExposed:false,readEnabled:readiness.readEnabled}}
 }
 
 export async function probeGmailConnection(){
@@ -81,12 +116,12 @@ export async function probeGmailConnection(){
   if(process.env.SUBPAR_REAL_DATA_APPROVED!=="true")return {provider:"gmail",status:"skipped",detail:"Real-data approval gate is closed",latencyMs:0};
   const start=Date.now();
   try{
-    const token=await getGmailAccessToken();
+    const token=await probeGmailToken();
     const response=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
     const data=await response.json();
     if(!response.ok)throw new Error(data.error?.message||`Gmail profile probe failed (${response.status})`);
-    return {provider:"gmail",status:"pass",detail:"Gmail OAuth and mailbox profile access verified",latencyMs:ms(start),emailAddress:data.emailAddress||null,historyId:data.historyId?String(data.historyId):null,messagesTotal:data.messagesTotal??null,threadsTotal:data.threadsTotal??null,tokenExposed:false};
-  }catch(error){return {provider:"gmail",status:"fail",detail:error.message,latencyMs:ms(start),tokenExposed:false}}
+    return {provider:"gmail",status:"pass",detail:"Gmail OAuth and mailbox profile access verified",latencyMs:ms(start),emailAddress:data.emailAddress||null,historyId:data.historyId?String(data.historyId):null,messagesTotal:data.messagesTotal??null,threadsTotal:data.threadsTotal??null,tokenExposed:false,syncEnabled:integration.gmail.syncEnabled};
+  }catch(error){return {provider:"gmail",status:"fail",detail:error.message,latencyMs:ms(start),tokenExposed:false,syncEnabled:integration.gmail.syncEnabled}}
 }
 
 async function storeConnectionTest(result,testedBy){
