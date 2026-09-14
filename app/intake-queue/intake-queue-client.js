@@ -26,7 +26,7 @@ export default function IntakeQueueClient({initialIntakes=[]}){
       const body=await response.json();if(!response.ok)throw new Error(body.error||"Intake action failed");
       if(action==="create-link"){setLink(body.data.url);setStatus(body.data.dryRun?"Preview customer intake link created.":"Secure customer intake link created.");}
       if(action==="review"){setIntakes(rows=>rows.map(row=>row.id===active.id?{...row,compatibilityStatus:body.data.compatibility_status||body.data.compatibilityStatus||extra.decision,compatibilityNotes:body.data.compatibility_notes||reviewNotes,nextAction:body.data.next_action||row.nextAction}:row));setStatus(extra.decision==="compatible"?"Compatibility approved. Project activation is now the next gated action.":"Compatibility review updated.");}
-      if(action==="activate"){setIntakes(rows=>rows.map(row=>row.id===active.id?{...row,status:"converted",projectId:body.data.projectId||row.projectId}:row));setStatus(body.data.dryRun?"Preview activation passed. No project was created.":`Project ${body.data.projectNumber} created from intake.`);}
+      if(action==="activate"){setIntakes(rows=>rows.map(row=>row.id===active.id?{...row,status:"converted",projectId:body.data.projectId||row.projectId,projectNumber:body.data.projectNumber||row.projectNumber}:row));setStatus(body.data.dryRun?"Preview activation passed. No project was created.":`Project ${body.data.projectNumber} created from intake.`);}
       return body.data;
     }catch(error){setStatus(error.message);return null}finally{setBusy("")}
   }
@@ -55,7 +55,7 @@ export default function IntakeQueueClient({initialIntakes=[]}){
 
         <section className={`${styles.panel} ${styles.activation}`}><div className={styles.panelHead}><div><span>STEP 3</span><h3>Activate tune project</h3><p>One atomic action creates the vehicle, links the paid order, creates the tune project and seeds starting requirements.</p></div><Wrench size={18}/></div><div className={styles.activationRow}><div><b>{active.compatibilityStatus==="compatible"?"Ready to activate":"Compatibility approval required"}</b><p>{active.compatibilityStatus==="compatible"?"The database transaction is replay-safe. A retry returns the existing project instead of creating another one.":"Doug must explicitly approve compatibility before project creation unlocks."}</p></div><button disabled={Boolean(busy)||active.compatibilityStatus!=="compatible"||active.status==="converted"} onClick={()=>call("activate")}><Wrench size={13}/>{busy==="activate"?"Activating…":active.status==="converted"?"Converted":"Create tune project"}</button></div></section>
         {status&&<div className={styles.status}>{status}</div>}
-        {active.projectId&&<div className={styles.projectLink}><CheckCircle2 size={14}/><span>Intake converted to a tune project.</span><Link href={`/project/${active.projectNumber||"SP-1842"}`}>Open project <ExternalLink size={12}/></Link></div>}
+        {active.projectNumber&&<div className={styles.projectLink}><CheckCircle2 size={14}/><span>Intake converted to {active.projectNumber}.</span><Link href={`/project/${active.projectNumber}`}>Open project <ExternalLink size={12}/></Link></div>}
       </>}
     </section>
   </section>;
