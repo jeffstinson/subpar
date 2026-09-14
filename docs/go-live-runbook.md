@@ -25,6 +25,8 @@ Run these in order against the Subpar-only Supabase project:
 9. `0009_intake_handoff_queue.sql`
 10. `0010_vehicle_platform_intelligence.sql`
 11. `0011_log_intelligence.sql`
+12. `0012_log_review_workflow.sql`
+13. `0013_revision_delivery_loop.sql`
 
 Never skip a migration or run them against another project. The `schema_migrations` ledger should report the same ordered versions after provisioning.
 
@@ -83,14 +85,55 @@ For each sample:
 
 The log parser is a review accelerator, not a tuning authority. A clean heuristic result is not approval to deliver a calibration.
 
+## 5A. Validate the tuner Review Cockpit
+
+Use `/reviews` with synthetic records first, then Doug-approved sample logs.
+
+1. Confirm the current pull and comparison pull belong to the same project.
+2. Confirm revision/pull deltas use persisted parser metrics instead of hardcoded demo values.
+3. Add an RPM/metric annotation and confirm it remains attached to the review session.
+4. Confirm internal tuner notes and customer-safe summaries remain separate.
+5. Test `create_revision`, `request_relog`, `complete` and `hold` independently.
+6. Replay a completed decision and confirm it does not create duplicate revisions or duplicate history.
+7. Link a Datazap URL and confirm it is stored as reference-only context.
+8. Attempt to reuse that Datazap URL on another project and confirm automatic reassignment is blocked.
+9. Confirm Datazap references never become numeric parser evidence without a verified source file.
+
+## 5B. Validate the closed revision-delivery loop
+
+Use `/delivery/SP-1842` and `/portal/SP-1842/delivery?preview=alex` in demo first, then repeat against the synthetic Supabase project.
+
+1. Create the next draft revision from `/reviews`.
+2. Upload a tune artifact and confirm `tune_revision` is forced `internal` by the server regardless of requested visibility.
+3. Confirm the file is immutable and tied to the exact revision.
+4. Save separate internal QA notes and customer-visible change summary.
+5. Choose `request_log`, `feedback_only` or `complete` explicitly.
+6. Run delivery QA and confirm all delivery gates are deterministic and inspectable.
+7. Confirm QA records the exact `primary_file_id` and SHA-256.
+8. Approve the revision and confirm the file remains internal/customer-inaccessible.
+9. Attach another tune file after approval and confirm release remains pinned to the originally QA-approved file.
+10. Modify/replace the approved storage object in a controlled test and confirm the release hash check blocks delivery.
+11. Deliver the approved revision and confirm file visibility, revision status, project state and delivery ledger advance atomically.
+12. Confirm Gmail notification is staged only after the portal release transaction succeeds.
+13. Keep Gmail provider send disabled and confirm portal delivery still succeeds independently.
+14. Confirm the customer receives only the exact approved file through a short-lived signed URL.
+15. Confirm customer receipt acknowledgement is recorded.
+16. Confirm install acknowledgement opens the correct next step.
+17. For `request_log`, upload a customer MHD CSV and confirm: pending log row → private object → immutable file registration → parser → project returns to `waiting_on=tuner` → `/reviews` queue.
+18. Force a parser error and confirm the uploaded file is retained while Doug receives a parser-attention next action.
+19. For `feedback_only`, confirm no log upload is requested automatically.
+20. For `complete`, confirm install acknowledgement returns the project to Doug for final closeout.
+
+Approval and delivery are intentionally separate states. No tune artifact becomes customer-visible at upload or QA time.
+
 ## 6. Prove identity boundaries
 
 1. Configure public Supabase auth variables.
 2. Create Doug as an `owner` in `internal_users`.
 3. Create a synthetic customer auth user mapped in `customer_portal_users`.
 4. Enable internal auth in preview first.
-5. Confirm Doug can access tuner/admin routes, including `/intelligence`, `/log-lab`, `/intake-queue`, `/messages`, `/outbound`, `/go-live` and live workspaces.
-6. Confirm the customer can access only their portal-visible project/file/message data.
+5. Confirm Doug can access tuner/admin routes, including `/intelligence`, `/log-lab`, `/reviews`, `/delivery/SP-1842`, `/intake-queue`, `/messages`, `/outbound`, `/go-live` and live workspaces.
+6. Confirm the customer can access only their portal-visible project/file/message/delivery data.
 7. Confirm customer access to internal routes/APIs/files is denied.
 8. Test login refresh, session expiry and logout.
 
@@ -105,6 +148,8 @@ For each storage lane — stock files, revisions, datalogs, parameter packs and 
 5. Confirm immutable file metadata is tied to the correct project/revision/log.
 6. Request a signed download and confirm the URL expires.
 7. Confirm customer identity cannot access tuner-only files.
+8. Confirm generic File Manager upload cannot make a `tune_revision` customer-visible.
+9. Confirm only the approved revision-delivery release can switch a tune artifact from internal to customer visibility.
 
 Do not enable real customer/tune files until all lanes pass.
 
@@ -227,20 +272,28 @@ Outbound flow is intentionally:
 
 `compose → draft → owner/tuner approval → provider send → provider message/thread ID → Subpar conversation history`
 
-The intake invitation uses the same approval boundary. Its raw secure intake link is created only immediately before provider send.
+Revision delivery uses the same separation: portal release is authoritative; the customer-notification email is staged afterward and provider send remains separately gated.
+
+The intake invitation also uses the same approval boundary. Its raw secure intake link is created only immediately before provider send.
 
 ## 16. Cutover completion criteria
 
 The deployment is operational only when all of these are true:
 
 - database parity passed
-- migration ledger shows 0001–0011
+- migration ledger shows 0001–0013
 - vehicle intelligence representative tests passed
 - datalog intelligence sample-log validation passed
+- Review Cockpit decision/replay validation passed
+- Datazap reference boundary passed
+- revision artifact pin/hash/atomic-release tests passed
+- customer delivery acknowledgement passed
+- customer next-log upload → parser → Doug review return passed
 - Doug internal identity passed
 - customer isolation passed
 - cross-boundary denial passed
 - private file round-trip passed
+- generic tune upload cannot bypass revision release
 - secure intake token behavior passed
 - intake activation replay safety passed
 - Wix replay safety passed
@@ -260,7 +313,8 @@ If anything looks wrong:
 3. Set `SUBPAR_GMAIL_SEND_ENABLED=false`.
 4. Set `SUBPAR_IMPORT_APPLY_ENABLED=false` if a backfill is active.
 5. Leave signed Wix receipt capture on only if diagnosis needs provider events recorded.
-6. Do not delete integration history, intelligence profiles, parser profiles or project history. Pause and inspect the ledgers.
-7. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
+6. Do not delete integration history, intelligence profiles, parser profiles, review sessions, revision-delivery records or project history. Pause and inspect the ledgers.
+7. Never make an approved tune file public manually to work around a delivery problem; fix the QA/release failure and rerun the controlled flow.
+8. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
 
 Every live capability is designed to pause independently without taking the dashboard offline.
