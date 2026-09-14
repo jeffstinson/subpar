@@ -1,251 +1,102 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
 import {
-  LayoutDashboard, FolderKanban, ShoppingBag, Activity, RefreshCw, MessageSquare,
-  CreditCard, FileCheck2, Files, Package, Users, Car, BarChart3, Settings,
-  Search, Bell, Plus, Upload, ExternalLink, CheckCircle2, AlertCircle, Clock3,
-  ChevronRight, Send, Calculator, Globe2, LogOut, Gauge, CircleDollarSign, Mail
+  LayoutDashboard, ListChecks, ShoppingBag, Activity, RefreshCw, MessageSquare,
+  Users, Car, Calculator, Globe2, Settings, Search, Bell, Plus, ExternalLink,
+  CheckCircle2, AlertTriangle, ChevronRight, Send, Mail, UploadCloud, Clock3,
+  FileText, Gauge, Fuel, Sparkles, Wrench, ArrowRight, X, Phone, MapPin,
+  CircleDollarSign, ShieldCheck, Database, Link2, Filter
 } from "lucide-react";
 
 const jobs = [
-  {id:1,name:"Alex Rivera",email:"alex.rivera@gmail.com",vehicle:"2021 BMW M340i",engine:"B58TU",platform:"MHD",rev:"Rev 4",status:"Log Uploaded",priority:"High",last:"18m ago",fuel:"E40",order:"#SP-1842"},
-  {id:2,name:"Mike Tremblay",email:"mike.tremblay@outlook.com",vehicle:"2019 BMW M2 Competition",engine:"S55",platform:"BM3",rev:"Rev 2",status:"Revision in Progress",priority:"High",last:"46m ago",fuel:"93",order:"#SP-1839"},
-  {id:3,name:"Ryan Gallagher",email:"rgallagher@me.com",vehicle:"2022 BMW M3 Competition",engine:"S58",platform:"EcuTek",rev:"Rev 5",status:"Ready to Deliver",priority:"Med",last:"1h ago",fuel:"E50",order:"#SP-1834"},
-  {id:4,name:"Sarah Chen",email:"s.chen.bmw@icloud.com",vehicle:"2020 Toyota Supra",engine:"B58",platform:"MHD",rev:"Rev 2",status:"Waiting on Customer",priority:"Med",last:"3h ago",fuel:"93",order:"#SP-1830"},
-  {id:5,name:"Tyler Brooks",email:"tyler.brooks@gmail.com",vehicle:"2015 BMW 335i xDrive",engine:"N55",platform:"MHD",rev:"Rev 4",status:"Compat. Review",priority:"Low",last:"5h ago",fuel:"E30",order:"#SP-1827"},
-  {id:6,name:"Carlos Mendez",email:"c.mendez.tuning@hotmail.com",vehicle:"2016 BMW M4",engine:"S55",platform:"BM3",rev:"Rev 1",status:"New Order",priority:"High",last:"Just now",fuel:"93",order:"#SP-1846"},
-  {id:7,name:"Jordan Patel",email:"jpatel@proton.me",vehicle:"2024 BMW M2",engine:"S58",platform:"EcuTek",rev:"Rev 1",status:"Vehicle Info Received",priority:"Med",last:"11m ago",fuel:"E50",order:"#SP-1845"},
+  {id:1,name:"Alex Rivera",email:"alex.rivera@gmail.com",vehicle:"2021 BMW M340i",engine:"B58TU",platform:"MHD",rev:"Rev 4",status:"Log Uploaded",priority:"High",last:"18m ago",fuel:"E40",order:"SP-1842",next:"Review 2 new logs",color:"green"},
+  {id:2,name:"Mike Tremblay",email:"mike.tremblay@outlook.com",vehicle:"2019 BMW M2 Competition",engine:"S55",platform:"BM3",rev:"Rev 2",status:"Revision in Progress",priority:"High",last:"46m ago",fuel:"93",order:"SP-1839",next:"Finish Rev 2",color:"red"},
+  {id:3,name:"Ryan Gallagher",email:"rgallagher@me.com",vehicle:"2022 BMW M3 Competition",engine:"S58",platform:"EcuTek",rev:"Rev 5",status:"Ready to Deliver",priority:"Med",last:"1h ago",fuel:"E50",order:"SP-1834",next:"Send customer update",color:"purple"},
+  {id:4,name:"Sarah Chen",email:"s.chen.bmw@icloud.com",vehicle:"2020 Toyota Supra",engine:"B58",platform:"MHD",rev:"Rev 2",status:"Waiting on Customer",priority:"Med",last:"3h ago",fuel:"93",order:"SP-1830",next:"Waiting for pull",color:"amber"},
+  {id:5,name:"Tyler Brooks",email:"tyler.brooks@gmail.com",vehicle:"2015 BMW 335i xDrive",engine:"N55",platform:"MHD",rev:"Rev 4",status:"Compatibility Review",priority:"Low",last:"5h ago",fuel:"E30",order:"SP-1827",next:"Review ROM details",color:"blue"},
+  {id:6,name:"Carlos Mendez",email:"c.mendez.tuning@hotmail.com",vehicle:"2016 BMW M4",engine:"S55",platform:"BM3",rev:"Rev 1",status:"New Order",priority:"High",last:"Just now",fuel:"93",order:"SP-1846",next:"Send intake",color:"amber"},
+  {id:7,name:"Jordan Patel",email:"jpatel@proton.me",vehicle:"2024 BMW M2",engine:"S58",platform:"EcuTek",rev:"Rev 1",status:"Vehicle Info Received",priority:"Med",last:"11m ago",fuel:"E50",order:"SP-1845",next:"Review intake",color:"blue"},
+  {id:8,name:"Brandon Cole",email:"brandon@icloud.com",vehicle:"2023 BMW X3 M40i",engine:"B58TU",platform:"MHD",rev:"Rev 3",status:"Log Uploaded",priority:"High",last:"29m ago",fuel:"E35",order:"SP-1822",next:"Review HPFP trace",color:"green"},
 ];
 
 const nav = [
   ["dashboard","Dashboard",LayoutDashboard],
-  ["projects","Active Projects",FolderKanban],
+  ["queue","Tune Queue",ListChecks],
   ["orders","New Orders",ShoppingBag],
   ["logs","Datalog Reviews",Activity],
   ["revisions","Tune Revisions",RefreshCw],
   ["messages","Messages",MessageSquare],
-  ["payments","Payments",CreditCard],
-  ["waivers","Waivers",FileCheck2],
-  ["files","Files",Files],
-  ["products","Products",Package],
   ["customers","Customers",Users],
   ["garage","Vehicle Garage",Car],
   ["calculator","E85 Calculator",Calculator],
+  ["portal","Customer Portal",ExternalLink],
   ["website","Website Redesign",Globe2],
-  ["analytics","Analytics",BarChart3],
-  ["settings","Settings",Settings],
+  ["integrations","Integrations",Settings],
 ];
 
-function Badge({children, tone="green"}) {
-  return <span className={`badge ${tone}`}>{children}</span>
-}
+const activity = [
+  [UploadCloud,"Alex Rivera uploaded 2 MHD logs","18m ago","green"],
+  [Mail,"EcuTek log alert matched to Ryan Gallagher","31m ago","purple"],
+  [ShoppingBag,"Carlos Mendez purchased an S55 custom tune","Just now","amber"],
+  [RefreshCw,"Mike Tremblay moved into Rev 2","46m ago","red"],
+  [MessageSquare,"Sarah Chen replied through Gmail","3h ago","blue"],
+  [CheckCircle2,"Jordan Patel completed vehicle intake","11m ago","green"],
+];
 
-function Sidebar({active,setActive}) {
+function Badge({children,tone="green"}){ return <span className={`badge ${tone}`}>{children}</span> }
+
+function Sidebar({active,setActive}){
   return <aside className="sidebar">
-    <div className="brand">
-      <img src="/subpar-logo.png" alt="Subpar Tuning" />
-      <div>
-        <strong>SUBPAR OS</strong>
-        <span>TUNING DASHBOARD</span>
-      </div>
-    </div>
-    <nav>
-      {nav.map(([id,label,Icon]) => (
-        <button key={id} onClick={()=>setActive(id)} className={active===id ? "nav active":"nav"}>
-          <Icon size={17}/><span>{label}</span>
-          {id==="logs" && <em>7</em>}
-          {id==="messages" && <em>6</em>}
-          {id==="orders" && <em>3</em>}
-        </button>
-      ))}
-    </nav>
-    <div className="sideBottom">
-      <div className="user">
-        <div className="avatar">DT</div>
-        <div><b>Doug Talmadge</b><span>Subpar Tuning</span></div>
-      </div>
-      <button className="logout"><LogOut size={15}/> Exit Dashboard</button>
-    </div>
+    <div className="brand"><img src="/subpar-logo.png" alt="Subpar Tuning"/><div><strong>SUBPAR OS</strong><span>TUNING DASHBOARD</span></div></div>
+    <nav>{nav.map(([id,label,Icon])=><button key={id} onClick={()=>setActive(id)} className={active===id?"nav active":"nav"}><Icon size={15}/><span>{label}</span>{id==="queue"&&<em>18</em>}{id==="orders"&&<em>3</em>}{id==="logs"&&<em>7</em>}{id==="revisions"&&<em>4</em>}{id==="messages"&&<em>6</em>}</button>)}</nav>
+    <div className="sideBottom"><div className="user"><div className="avatar">DT</div><div><b>Doug Talmadge</b><span>Subpar Tuning</span></div><i/></div></div>
   </aside>
 }
 
-function Header({active,search,setSearch}) {
-  const label = nav.find(x=>x[0]===active)?.[1] || "Dashboard";
-  return <header className="topbar">
-    <div className="crumb">SUBPAR OS <span>/</span> {label}</div>
-    <div className="topActions">
-      <div className="search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers, vehicles, orders, logs..." /></div>
-      <button className="iconBtn"><Bell size={17}/><i /></button>
-    </div>
-  </header>
+function Header({active,query,setQuery}){
+  const label=nav.find(n=>n[0]===active)?.[1]||"Dashboard";
+  return <header className="topbar"><div className="crumb"><b>SUBPAR OS</b><span>/</span>{label.toUpperCase()}</div><div className="topActions"><div className="search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search customers, vehicles, emails, logs..."/></div><button className="iconBtn"><RefreshCw size={15}/></button><button className="iconBtn"><Bell size={15}/><i/></button></div></header>
 }
 
-function Dashboard({setActive}) {
-  const [filter,setFilter] = useState("All");
-  const rows = jobs.filter(j => filter==="All" || filter==="High"&&j.priority==="High" || filter===j.platform);
-  return <div className="page">
-    <div className="pageHead">
-      <div><span className="eyebrow">TODAY'S WORK QUEUE</span><h1>Good evening, Doug.</h1><p>Everything that needs your attention, without living in Wix and Gmail.</p></div>
-      <div className="headActions"><button className="btn secondary"><RefreshCw size={14}/> Sync activity</button><button className="btn primary"><Plus size={14}/> New tune</button></div>
-    </div>
+function Stat({label,value,sub,tone="white",Icon}){return <div className="stat"><div className="statTop"><span>{label}</span>{Icon&&<Icon size={14}/>}</div><strong className={tone}>{value}</strong><small>{sub}</small></div>}
 
-    <div className="stats">
-      {[
-        ["New Orders","3","Awaiting intake","amber",ShoppingBag],
-        ["Logs Waiting","7","Ready to analyze","green",Activity],
-        ["Revisions Due","4","In progress","red",RefreshCw],
-        ["Ready to Deliver","2","Awaiting send-off","purple",Send],
-        ["Unread Messages","6","Customer replies","blue",Mail],
-        ["Revenue This Month","$7,840","Wix confirmed","green",CircleDollarSign],
-        ["Active Customers","18","Open tune projects","white",Users],
-        ["Missing Info","5","Needs customer action","amber",AlertCircle],
-      ].map(([a,b,c,t,Icon])=><div className="stat" key={a}><div className="statTop"><span>{a}</span><Icon size={15}/></div><strong className={t}>{b}</strong><small>{c}</small></div>)}
-    </div>
-
-    <div className="dashGrid">
-      <section className="panel queuePanel">
-        <div className="panelHead">
-          <div><h3>Work Queue</h3><p>Prioritized by newest activity and tuner action required.</p></div>
-          <div className="filters">{["All","High","MHD","BM3","EcuTek"].map(x=><button key={x} className={filter===x?"on":""} onClick={()=>setFilter(x)}>{x}</button>)}</div>
-        </div>
-        <div className="tableWrap"><table>
-          <thead><tr><th>Customer</th><th>Vehicle</th><th>Platform</th><th>Rev</th><th>Status</th><th>Priority</th><th>Last Activity</th><th></th></tr></thead>
-          <tbody>{rows.map(j=><tr key={j.id}>
-            <td><b>{j.name}</b><span>{j.email}</span></td>
-            <td>{j.vehicle}<span>{j.engine}</span></td>
-            <td><Badge tone={j.platform==="MHD"?"green":j.platform==="BM3"?"blue":"purple"}>{j.platform}</Badge></td>
-            <td>{j.rev}</td>
-            <td><Badge tone={j.status==="Log Uploaded"?"green":j.status==="Ready to Deliver"?"purple":j.status==="Revision in Progress"?"red":"amber"}>{j.status}</Badge></td>
-            <td><Badge tone={j.priority==="High"?"red":j.priority==="Med"?"amber":"gray"}>{j.priority}</Badge></td>
-            <td>{j.last}</td>
-            <td><button className="miniBtn"><ChevronRight size={14}/></button></td>
-          </tr>)}</tbody>
-        </table></div>
-      </section>
-
-      <section className="panel activityPanel">
-        <div className="panelHead"><div><h3>Today's Activity</h3><p>Synced activity across the stack.</p></div></div>
-        <div className="activityList">
-          {[
-            ["Alex Rivera uploaded 2 MHD logs","18m",Upload],
-            ["EcuTek alert matched to Ryan Gallagher","31m",Mail],
-            ["Carlos Mendez purchased S55 tune","Now",ShoppingBag],
-            ["Mike Tremblay moved to Rev 2","46m",RefreshCw],
-            ["Sarah Chen replied from Gmail","3h",MessageSquare],
-            ["Jordan Patel completed vehicle intake","11m",CheckCircle2],
-          ].map(([t,time,Icon])=><div className="activityRow" key={t}><div className="activityIcon"><Icon size={14}/></div><div><b>{t}</b><span>{time}</span></div></div>)}
-        </div>
-      </section>
-
-      <section className="panel automation">
-        <div className="panelHead"><div><h3>Automation / Onboarding</h3><p>What happens after a Wix purchase.</p></div></div>
-        <div className="steps">
-          {[
-            ["1","Wix Order","Customer + order created","done"],
-            ["2","Platform Intake","MHD / BM3 / EcuTek instructions","done"],
-            ["3","Vehicle Form","2 waiting on customer","active"],
-            ["4","Tune Queue","Moves to Doug automatically",""],
-          ].map(([n,a,b,s])=><div className={`step ${s}`} key={n}><span>{n}</span><div><b>{a}</b><small>{b}</small></div></div>)}
-        </div>
-        <div className="chips"><Badge>Wix</Badge><Badge>Gmail</Badge><Badge>MHD</Badge><Badge tone="blue">BM3</Badge><Badge tone="purple">EcuTek</Badge></div>
-      </section>
-
-      <section className="panel logPanel">
-        <div className="panelHead"><div><h3>Latest Log Snapshot</h3><p>Alex Rivera • MHD • Rev 4</p></div><button className="miniLink">Open Datazap <ExternalLink size={12}/></button></div>
-        <div className="metrics">
-          {[["Boost Target","24.0 psi",82],["Boost Actual","24.3 psi",84],["Lambda","0.81",78],["Max Timing Corr.","-1.5°",35],["HPFP Min","2,570 psi",88],["IAT Peak","118°F",62]].map(([a,b,w])=><div className="metric" key={a}><span>{a}</span><b>{b}</b><div><i style={{width:`${w}%`}} /></div></div>)}
-        </div>
-        <div className="insight"><CheckCircle2 size={16}/><div><b>Clean pull overall.</b><span>No throttle closure. Slight Cyl 4 correction around 5,700 RPM.</span></div></div>
-      </section>
-    </div>
-  </div>
+function QueueTable({compact=false,query=""}){
+  const [filter,setFilter]=useState("All");
+  const rows=jobs.filter(j=>{
+    const text=Object.values(j).join(" ").toLowerCase();
+    const q=!query||text.includes(query.toLowerCase());
+    const f=filter==="All"||filter==="High"&&j.priority==="High"||filter===j.platform;
+    return q&&f;
+  });
+  return <section className={`panel queuePanel ${compact?"compact":""}`}><div className="panelHead"><div><h3>{compact?"Current Tune Queue":"Tune Queue"}</h3><p>Prioritized around the next action Doug needs to take.</p></div><div className="filters"><Filter size={11}/>{["All","High","MHD","BM3","EcuTek"].map(f=><button key={f} className={filter===f?"on":""} onClick={()=>setFilter(f)}>{f}</button>)}</div></div><div className="tableWrap"><table><thead><tr><th>Customer</th><th>Vehicle</th><th>Platform</th><th>Rev</th><th>Status</th><th>Priority</th><th>Last Activity</th><th></th></tr></thead><tbody>{rows.map(j=><tr key={j.id}><td><b>{j.name}</b><span>{j.email}</span></td><td><b className="normalWeight">{j.vehicle}</b><span>{j.engine} • {j.fuel}</span></td><td><Badge tone={j.platform==="MHD"?"green":j.platform==="BM3"?"blue":"purple"}>{j.platform}</Badge></td><td>{j.rev}</td><td><Badge tone={j.color}>{j.status}</Badge><span>{j.next}</span></td><td><Badge tone={j.priority==="High"?"red":j.priority==="Med"?"amber":"gray"}>{j.priority}</Badge></td><td>{j.last}</td><td><button className="miniBtn"><ChevronRight size={14}/></button></td></tr>)}</tbody></table>{rows.length===0&&<div className="empty">No tunes match this filter.</div>}</div></section>
 }
 
-function GenericList({title,subtitle,kind}) {
-  const list = kind==="customers" ? jobs : jobs.slice(0,6);
-  return <div className="page">
-    <div className="pageHead"><div><span className="eyebrow">{title.toUpperCase()}</span><h1>{title}</h1><p>{subtitle}</p></div></div>
-    <section className="panel cardsPanel">
-      <div className="cardsGrid">
-        {list.map(j=><div className="customerCard" key={j.id}>
-          <div className="cardTop"><div className="avatar small">{j.name.split(" ").map(x=>x[0]).join("")}</div><Badge tone={j.platform==="MHD"?"green":j.platform==="BM3"?"blue":"purple"}>{j.platform}</Badge></div>
-          <h3>{j.name}</h3><p>{j.vehicle}</p>
-          <div className="cardMeta"><span>{j.engine}</span><span>{j.fuel}</span><span>{j.rev}</span></div>
-          <div className="cardBottom"><span>{j.status}</span><ChevronRight size={15}/></div>
-        </div>)}
-      </div>
-    </section>
-  </div>
+function ActivityPanel(){return <section className="panel activityPanel"><div className="panelHead"><div><h3>Today's Activity</h3><p>Ingested from the systems Doug already uses.</p></div></div><div className="activityList">{activity.map(([Icon,text,time,tone])=><div className="activityRow" key={text}><div className={`activityIcon ${tone}`}><Icon size={13}/></div><div><b>{text}</b><span>{time}</span></div></div>)}</div></section>}
+
+function IntakePanel(){return <section className="panel automation"><div className="panelHead"><div><h3>Automated Intake</h3><p>Wix purchase → right instructions → queue.</p></div></div><div className="steps">{[["1","Wix order received","Customer + product matched","done"],["2","Platform-specific email sent","MHD / BM3 / EcuTek instructions","done"],["3","Vehicle intake","2 customers completing info","active"],["4","Moves into tune queue","Doug only sees what needs action",""]].map(([n,a,b,s])=><div className={`step ${s}`} key={n}><span>{n}</span><div><b>{a}</b><small>{b}</small></div></div>)}</div><div className="chips"><Badge>Wix</Badge><Badge>Gmail</Badge><Badge>MHD</Badge><Badge tone="blue">bootmod3</Badge><Badge tone="purple">EcuTek</Badge><Badge tone="gray">Datazap</Badge></div></section>}
+
+function LogSnapshot(){return <section className="panel logPanel"><div className="panelHead"><div><h3>Latest Log Snapshot</h3><p>Alex Rivera • M340i • MHD • Rev 4</p></div><button className="miniLink">Open Datazap <ExternalLink size={11}/></button></div><div className="metrics">{[["Boost Target","24.0 psi",82],["Boost Actual","24.3 psi",84],["Lambda","0.81",78],["Timing Corr.","-1.5°",34],["HPFP Min","2,570 psi",88],["IAT Peak","118°F",62]].map(([a,b,w])=><div className="metric" key={a}><span>{a}</span><b>{b}</b><div><i style={{width:`${w}%`}}/></div></div>)}</div><div className="insight"><CheckCircle2 size={15}/><div><b>Clean pull overall.</b><span>No throttle closure. Slight Cyl 4 correction around 5,700 RPM.</span></div></div></section>}
+
+function Dashboard({query,setActive}){return <div className="page"><div className="pageHead"><div><span className="eyebrow">SUBPAR TUNING • OPERATIONS</span><h1>Good evening, Doug.</h1><p>One place to run current tunes, see what customers owe you, review incoming logs, and keep every car's history intact — without replacing Wix, Gmail, MHD, bootmod3 or EcuTek.</p></div><div className="headActions"><button className="btn secondary"><RefreshCw size={13}/> Sync activity</button><button className="btn primary"><Plus size={13}/> New tune</button></div></div><div className="stats"><Stat label="New Orders" value="3" sub="Wix purchases awaiting intake" tone="amber" Icon={ShoppingBag}/><Stat label="Logs Waiting" value="7" sub="MHD / BM3 / EcuTek" tone="green" Icon={Activity}/><Stat label="Revisions Due" value="4" sub="Needs Doug" tone="red" Icon={RefreshCw}/><Stat label="Ready to Deliver" value="2" sub="Customer-ready" tone="purple" Icon={Send}/><Stat label="Unread Messages" value="6" sub="Synced from Gmail" tone="blue" Icon={Mail}/><Stat label="Revenue This Month" value="$7,840" sub="Confirmed Wix orders" tone="green" Icon={CircleDollarSign}/><Stat label="Active Tunes" value="18" sub="Across 17 vehicles" tone="white" Icon={Gauge}/><Stat label="Waiting on Customer" value="5" sub="Info / logs / waiver" tone="amber" Icon={Clock3}/></div><div className="dashGrid"><QueueTable compact query={query}/><div className="rightStack"><ActivityPanel/><IntakePanel/></div><LogSnapshot/></div></div>}
+
+function CardsPage({title,subtitle,mode="jobs",query=""}){
+  const list=jobs.filter(j=>!query||Object.values(j).join(" ").toLowerCase().includes(query.toLowerCase()));
+  return <div className="page"><div className="pageHead"><div><span className="eyebrow">SUBPAR OS</span><h1>{title}</h1><p>{subtitle}</p></div><button className="btn primary"><Plus size={13}/> Add</button></div>{mode==="queue"?<QueueTable query={query}/>:<div className="cardsGrid">{list.map(j=><article className="customerCard" key={j.id}><div className="cardTop"><div className="avatar small">{j.name.split(" ").map(x=>x[0]).join("")}</div><Badge tone={j.platform==="MHD"?"green":j.platform==="BM3"?"blue":"purple"}>{j.platform}</Badge></div><h3>{mode==="garage"?j.vehicle:j.name}</h3><p>{mode==="garage"?j.name:j.vehicle}</p><div className="cardMeta"><span>{j.engine}</span><span>{j.fuel}</span><span>{j.rev}</span></div><div className="cardAction"><div><small>{j.order}</small><b>{j.status}</b></div><ChevronRight size={15}/></div></article>)}</div>}</div>
 }
 
-function CalculatorView() {
-  const [tank,setTank]=useState(15.6), [current,setCurrent]=useState(5), [currentE,setCurrentE]=useState(10), [e85,setE85]=useState(78), [target,setTarget]=useState(40);
-  const add = Math.max(0,tank-current);
-  const x = Math.max(0,Math.min(add, ((target*tank)-(currentE*current)-(10*add))/(e85-10)));
-  const pump = Math.max(0,add-x);
-  return <div className="page">
-    <div className="pageHead"><div><span className="eyebrow">CUSTOMER TOOL</span><h1>E85 Calculator</h1><p>Built directly into the Subpar customer experience.</p></div></div>
-    <div className="calculatorGrid">
-      <section className="panel calcCard">
-        <h3>Blend Calculator</h3>
-        {[["Tank Capacity (gal)",tank,setTank],["Fuel Currently in Tank (gal)",current,setCurrent],["Current Ethanol %",currentE,setCurrentE],["Actual E85 Ethanol %",e85,setE85],["Target Ethanol %",target,setTarget]].map(([l,v,set])=><label key={l}><span>{l}</span><input type="number" value={v} onChange={e=>set(Number(e.target.value))}/></label>)}
-      </section>
-      <section className="panel resultCard">
-        <span className="eyebrow">TARGET BLEND</span><strong>E{target}</strong>
-        <div className="resultRows"><div><span>Add E85</span><b>{x.toFixed(2)} gal</b></div><div><span>Add Pump Gas</span><b>{pump.toFixed(2)} gal</b></div><div><span>Total Added</span><b>{add.toFixed(2)} gal</b></div></div>
-        <div className="note"><AlertCircle size={15}/>Verify actual ethanol content before mixing. Calculator assumes pump gas is E10.</div>
-      </section>
-    </div>
-  </div>
+function CalculatorView(){
+  const presets={"M340i G20":15.6,"M240i G42":13.7,"M3/M4 G8X":15.6,"M2 G87":13.7,"X3 M40i":17.2,"X3M":17.2,"Supra A90/A91":13.7};
+  const [preset,setPreset]=useState("M340i G20"),[tank,setTank]=useState(15.6),[current,setCurrent]=useState(5),[currentE,setCurrentE]=useState(10),[e85,setE85]=useState(78),[target,setTarget]=useState(40);
+  const add=Math.max(0,tank-current); const denom=Math.max(1,e85-10); const e=Math.max(0,Math.min(add,((target*tank)-(currentE*current)-(10*add))/denom)); const pump=Math.max(0,add-e);
+  const changePreset=v=>{setPreset(v);setTank(presets[v])};
+  return <div className="page"><div className="pageHead"><div><span className="eyebrow">CUSTOMER TOOL</span><h1>E85 Blend Calculator</h1><p>Fast, BMW-focused ethanol blending built into the customer portal.</p></div></div><div className="calculatorGrid"><section className="panel calcCard"><div className="calcHead"><Fuel size={18}/><div><h3>Vehicle + Fuel</h3><p>Set the car and what's currently in the tank.</p></div></div><label><span>Vehicle preset</span><select value={preset} onChange={e=>changePreset(e.target.value)}>{Object.keys(presets).map(p=><option key={p}>{p}</option>)}</select></label>{[["Tank Capacity (gal)",tank,setTank],["Fuel Currently in Tank (gal)",current,setCurrent],["Current Ethanol %",currentE,setCurrentE],["Actual E85 Ethanol %",e85,setE85],["Target Ethanol %",target,setTarget]].map(([l,v,set])=><label key={l}><span>{l}</span><input type="number" value={v} onChange={e=>set(Number(e.target.value))}/></label>)}</section><section className="panel resultCard"><span className="eyebrow">TARGET MIX</span><strong>E{target}</strong><p>Fill the tank to {tank.toFixed(1)} gallons.</p><div className="resultRows"><div><span>Add E85</span><b>{e.toFixed(2)} gal</b></div><div><span>Add pump gas</span><b>{pump.toFixed(2)} gal</b></div><div><span>Total fuel to add</span><b>{add.toFixed(2)} gal</b></div></div><div className="mixBar"><i style={{width:`${add?e/add*100:0}%`}}/><span/></div><div className="note"><AlertTriangle size={14}/>Actual E85 content varies by station and season. Verify with a tester before relying on a blend target.</div></section></div></div>
 }
 
-function WebsiteView() {
-  return <div className="page websitePage">
-    <div className="pageHead"><div><span className="eyebrow">WEBSITE REDESIGN</span><h1>SubparTuning.com</h1><p>Dark, cleaner, faster path from “I need a tune” to purchase and portal.</p></div></div>
-    <section className="siteMock">
-      <div className="siteTop"><div className="siteBrand"><img src="/subpar-logo.png"/><div><b>SUBPAR TUNING</b><span>Custom Calibration • Remote Tuning</span></div></div><div className="siteNav"><span>Custom Tuning</span><span>Platforms</span><span>Revisions</span><span>About</span><button>Customer Portal</button></div></div>
-      <div className="siteHero">
-        <div><span className="eyebrow">BMW • TOYOTA SUPRA • REMOTE CUSTOM TUNING</span><h2>Data-driven tuning.<br/><em>Built around your car.</em></h2><p>Custom calibration across MHD, bootmod3 and EcuTek — with a customer experience that keeps orders, revisions, logs, files and support in one place.</p><div className="siteBtns"><button className="btn primary">Shop Custom Tunes</button><button className="btn secondary">Customer Portal</button></div></div>
-        <div className="siteLogoStage"><div></div><img src="/subpar-logo.png"/></div>
-      </div>
-      <div className="siteSection"><div className="sectionTitle"><div><span className="eyebrow">POPULAR CALIBRATIONS</span><h3>Find your platform.</h3></div></div>
-        <div className="products">
-          {[["S58","S58 Custom Tune","$850"],["B58 / B58TU","B58 Custom Tune","$650"],["S55","S55 Custom Tune","$750"],["N55","N55 Custom Tune","From $550"]].map(([e,n,p])=><div className="productCard" key={e}><span>{e}</span><h4>{n}</h4><p>Remote custom calibration with organized intake, revisions and log workflow.</p><b>{p}</b><div><Badge>MHD</Badge><Badge tone="blue">BM3</Badge></div></div>)}
-        </div>
-      </div>
-    </section>
-  </div>
-}
+function PortalView(){const j=jobs[0];return <div className="page"><div className="pageHead"><div><span className="eyebrow">CUSTOMER EXPERIENCE</span><h1>Portal Preview</h1><p>The same clean experience regardless of whether the tune is delivered through MHD, BM3 or EcuTek.</p></div></div><div className="portalShell"><div className="portalTop"><div className="portalBrand"><img src="/subpar-logo.png"/><div><b>SUBPAR TUNING</b><span>Customer Portal</span></div></div><div className="portalUser">Alex Rivera <div className="avatar small">AR</div></div></div><div className="portalHero"><div><span className="eyebrow">ACTIVE TUNE</span><h2>{j.vehicle}</h2><p>{j.engine} • {j.fuel} • {j.platform}</p></div><Badge tone="green">Doug reviewing logs</Badge></div><div className="portalGrid"><div className="portalMain"><section className="portalStatus"><div className="progress"><i/><i/><i className="current"/><i/></div><div className="statusLabels"><span>Order</span><span>Intake</span><span>Log Review</span><span>Revision</span></div></section><section className="panel nextCard"><span className="eyebrow">WHAT'S HAPPENING NOW</span><h3>Doug has your latest logs.</h3><p>Nothing needed from you right now. You'll get an email and portal alert when Rev 5 is ready.</p></section><section className="panel timelineCard"><h3>Tune Timeline</h3>{[["Today • 8:42 PM","2 datalogs received","MHD files attached to Rev 4"],["Today • 6:18 PM","Rev 4 flashed","Customer confirmed flash complete"],["Yesterday","Rev 4 delivered","File + instructions sent"],["Sep 10","Vehicle intake completed","Fuel, mods and VIN confirmed"]].map(x=><div className="timelineRow" key={x[0]}><i/><div><small>{x[0]}</small><b>{x[1]}</b><span>{x[2]}</span></div></div>)}</section></div><aside className="portalSide"><section className="panel quickCard"><h3>Quick Info</h3><div><span>Order</span><b>#{j.order}</b></div><div><span>Current revision</span><b>{j.rev}</b></div><div><span>Tuning platform</span><b>{j.platform}</b></div><div><span>Fuel</span><b>{j.fuel}</b></div></section><button className="portalAction"><Calculator size={15}/><div><b>E85 Calculator</b><span>Build your next blend</span></div><ChevronRight size={15}/></button><button className="portalAction"><MessageSquare size={15}/><div><b>Message Doug</b><span>Keep the thread with your tune</span></div><ChevronRight size={15}/></button></aside></div></div></div>}
 
-function SettingsView() {
-  const items=[["Wix","Orders, products, customer data and payment status."],["Gmail","Customer threads, automated onboarding and EcuTek email ingestion."],["MHD","Primary workflow: revisions, CSV logs, Datazap links and log summaries."],["bootmod3","Track project activity, links and customer status without replacing BM3."],["EcuTek","Ingest ECU Connect / cloud notifications into the correct order timeline."],["Datazap","Store/open log URLs from the same customer profile."]];
-  return <div className="page"><div className="pageHead"><div><span className="eyebrow">INTEGRATIONS</span><h1>Settings</h1><p>Keep the platforms Doug already uses. Subpar OS organizes them.</p></div></div><div className="settingsGrid">{items.map(([a,b])=><section className="panel settingCard" key={a}><div className="settingIcon"><Gauge size={18}/></div><h3>{a}</h3><p>{b}</p><button className="btn secondary">Configure</button></section>)}</div></div>
-}
+function WebsiteView(){return <div className="page websitePage"><div className="pageHead"><div><span className="eyebrow">WEBSITE REDESIGN</span><h1>SubparTuning.com Concept</h1><p>Keep Wix commerce underneath, but make the customer-facing site feel like the same premium product as Subpar OS.</p></div><a className="btn secondary" href="https://www.subpartuning.com/" target="_blank">Current site <ExternalLink size={12}/></a></div><section className="siteMock"><div className="siteTop"><div className="siteBrand"><img src="/subpar-logo.png"/><div><b>SUBPAR TUNING</b><span>Custom Calibration • Remote Tuning</span></div></div><div className="siteNav"><span>Custom Tuning</span><span>Platforms</span><span>Revisions</span><span>About</span><span>Support</span><button>Customer Portal</button></div></div><div className="siteHero"><div><span className="eyebrow">BMW • TOYOTA SUPRA • REMOTE CUSTOM TUNING</span><h2>Built around the car.<br/><em>Backed by the data.</em></h2><p>Custom calibration across MHD, bootmod3 and EcuTek with a cleaner purchase, intake and revision process from start to finish.</p><div className="siteBtns"><button className="btn primary">Shop Custom Tunes <ArrowRight size={13}/></button><button className="btn secondary">Customer Portal</button></div><div className="platformStrip"><div><b>MHD</b><span>Primary remote workflow</span></div><div><b>bootmod3</b><span>Cloud tuning + logs</span></div><div><b>EcuTek</b><span>ECU Connect workflow</span></div></div></div><div className="siteLogoStage"><div/><img src="/subpar-logo.png"/></div></div><div className="siteSection"><div className="sectionTitle"><div><span className="eyebrow">POPULAR CALIBRATIONS</span><h3>Find your platform.</h3></div><button className="textButton">View all tunes <ArrowRight size={12}/></button></div><div className="products">{[["S58","M2 / M3 / M4","$850"],["B58 / B58TU","M240i / M340i / Supra","$650"],["S55","F8X M2C / M3 / M4","$750"],["N55","E / F chassis","From $550"]].map(([e,n,p])=><article className="productCard" key={e}><div className="productIcon"><Gauge size={17}/></div><span>{e}</span><h4>{n}</h4><p>Custom remote calibration with organized intake, revisions and log workflow.</p><b>{p}</b><div><Badge>MHD</Badge><Badge tone="blue">BM3</Badge></div></article>)}</div></div><div className="siteSection siteAlt"><span className="eyebrow">HOW IT WORKS</span><h3>Less email chasing. More tuning.</h3><div className="processGrid">{[["01","Purchase","Checkout stays on Wix. Subpar OS creates the customer and tune."],["02","Complete intake","The right MHD, BM3 or EcuTek instructions are sent automatically."],["03","Track everything","Status, revisions, logs and messages stay with the car forever."]].map(x=><article key={x[0]}><span>{x[0]}</span><h4>{x[1]}</h4><p>{x[2]}</p></article>)}</div></div></section></div>}
 
-export default function Home() {
-  const [active,setActive]=useState("dashboard");
-  const [search,setSearch]=useState("");
-  const content = useMemo(()=>{
-    if(active==="dashboard") return <Dashboard setActive={setActive}/>;
-    if(active==="customers") return <GenericList title="Customers" subtitle="Customer, vehicle, order and tune history in one record." kind="customers"/>;
-    if(active==="garage") return <GenericList title="Vehicle Garage" subtitle="Persistent history for every car Doug has tuned."/>;
-    if(active==="logs") return <GenericList title="Datalog Reviews" subtitle="Newest logs across MHD, BM3 and EcuTek."/>;
-    if(active==="orders") return <GenericList title="New Orders" subtitle="Wix purchases waiting for intake or routing."/>;
-    if(active==="revisions") return <GenericList title="Tune Revisions" subtitle="Files in progress or ready to deliver."/>;
-    if(active==="projects") return <GenericList title="Active Projects" subtitle="Every open tune, organized by current action."/>;
-    if(active==="calculator") return <CalculatorView/>;
-    if(active==="website") return <WebsiteView/>;
-    if(active==="settings") return <SettingsView/>;
-    return <GenericList title={nav.find(x=>x[0]===active)?.[1] || "Subpar OS"} subtitle="This workflow is ready for live integration data."/>;
-  },[active]);
+function IntegrationsView(){const items=[["Wix",ShoppingBag,"Orders, products, customers and payment status.","Foundation"],["Gmail",Mail,"Sync customer threads, send intake, ingest EcuTek alerts.","Foundation"],["MHD",Gauge,"Primary platform: revisions, logs and Datazap workflow.","Deep integration"],["bootmod3",Link2,"Track tune requests, shared logs and status without replacing BM3.","Ingestion"],["EcuTek",Activity,"Match emailed log alerts and ECU Connect activity to orders.","Ingestion"],["Datazap",Database,"Attach shared log URLs and normalized review data.","Log layer"]];return <div className="page"><div className="pageHead"><div><span className="eyebrow">CONNECTED SYSTEMS</span><h1>Integrations</h1><p>Subpar OS is the organization layer — not a replacement for the tools Doug already uses.</p></div></div><div className="settingsGrid">{items.map(([a,Icon,b,c])=><section className="panel settingCard" key={a}><div className="settingTop"><div className="settingIcon"><Icon size={17}/></div><Badge tone={a==="Wix"||a==="Gmail"?"green":"gray"}>{c}</Badge></div><h3>{a}</h3><p>{b}</p><button className="btn secondary">Configure <ChevronRight size={12}/></button></section>)}</div><div className="securityNote"><ShieldCheck size={18}/><div><b>Live ingestion stays off until the corrected NDA is signed.</b><span>We can keep building the UI, schema and demo workflows with synthetic data meanwhile.</span></div></div></div>}
 
-  return <div className="shell">
-    <Sidebar active={active} setActive={setActive}/>
-    <main className="main">
-      <Header active={active} search={search} setSearch={setSearch}/>
-      {content}
-    </main>
-  </div>
-}
+export default function Home(){const [active,setActive]=useState("dashboard");const [query,setQuery]=useState("");const content=useMemo(()=>{if(active==="dashboard")return <Dashboard query={query} setActive={setActive}/>;if(active==="queue")return <CardsPage title="Tune Queue" subtitle="Every active tune organized by what Doug needs to do next." mode="queue" query={query}/>;if(active==="orders")return <CardsPage title="New Orders" subtitle="New Wix purchases ready for intake and routing." query={query}/>;if(active==="logs")return <CardsPage title="Datalog Reviews" subtitle="Incoming logs from MHD, BM3 and EcuTek surfaced in one queue." query={query}/>;if(active==="revisions")return <CardsPage title="Tune Revisions" subtitle="Current revisions, files in progress and customer-ready maps." query={query}/>;if(active==="messages")return <CardsPage title="Messages" subtitle="Customer communication tied back to the correct car and tune." query={query}/>;if(active==="customers")return <CardsPage title="Customers" subtitle="Customer, order, car and tuning history in one profile." query={query}/>;if(active==="garage")return <CardsPage title="Vehicle Garage" subtitle="Persistent history for every car Doug has tuned." mode="garage" query={query}/>;if(active==="calculator")return <CalculatorView/>;if(active==="portal")return <PortalView/>;if(active==="website")return <WebsiteView/>;if(active==="integrations")return <IntegrationsView/>;return null},[active,query]);return <div className="shell"><Sidebar active={active} setActive={setActive}/><main className="main"><Header active={active} query={query} setQuery={setQuery}/>{content}</main></div>}
