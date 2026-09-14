@@ -11,12 +11,24 @@ export function getDataMode() {
   return process.env.SUBPAR_DATA_MODE || "demo";
 }
 
+export function getAuthMode() {
+  return process.env.SUBPAR_AUTH_MODE || "demo";
+}
+
 export function mutationsEnabled() {
   return process.env.SUBPAR_MUTATIONS_ENABLED === "true";
 }
 
 export function syntheticSeedAllowed() {
   return process.env.SUBPAR_ALLOW_SYNTHETIC_SEED === "true";
+}
+
+export function internalAuthEnabled() {
+  return process.env.SUBPAR_INTERNAL_AUTH_ENABLED === "true";
+}
+
+export function portalAuthEnabled() {
+  return process.env.SUBPAR_PORTAL_AUTH_ENABLED === "true";
 }
 
 export function getSupabaseUrl() {
@@ -51,6 +63,29 @@ export function getPersistenceReadiness() {
     syntheticSeedAllowed: syntheticSeedAllowed(),
     safeForRealData: mode === "supabase" && missing.length === 0 && mutationsEnabled(),
     realDataGate: "disabled-until-explicit-approval",
+  };
+}
+
+export function getAuthReadiness() {
+  const authMode = getAuthMode();
+  const urlConfigured = Boolean(getSupabaseUrl());
+  const anonConfigured = Boolean(process.env.NEXT_PUBLIC_SUBPAR_SUPABASE_ANON_KEY);
+  const appUrlConfigured = Boolean(process.env.NEXT_PUBLIC_SUBPAR_APP_URL);
+  const publicAuthConfigured = urlConfigured && anonConfigured;
+
+  return {
+    mode: authMode,
+    supportedMode: authMode === "demo" || authMode === "supabase",
+    publicAuthConfigured,
+    internalAuthEnabled: internalAuthEnabled(),
+    portalAuthEnabled: portalAuthEnabled(),
+    appUrlConfigured,
+    missing: [
+      !urlConfigured && "Supabase URL",
+      !anonConfigured && "NEXT_PUBLIC_SUBPAR_SUPABASE_ANON_KEY",
+      !appUrlConfigured && "NEXT_PUBLIC_SUBPAR_APP_URL",
+    ].filter(Boolean),
+    defaultDeny: true,
   };
 }
 
