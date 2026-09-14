@@ -50,10 +50,14 @@ Added:
 - `app/loading.js`
 - `app/error.js`
 - `app/not-found.js`
+- `/api/health`
 
-These give the demo intentional loading, failure recovery and bad-route behavior.
+These give the demo intentional loading, failure recovery, bad-route behavior and a small deployment-health surface.
 
-### 6. Preserved data isolation
+### 6. Removed duplicate legacy app shells
+The superseded root-level `page.js` and `layout.js` were deleted after the new `app/` dashboard stopped importing them. The repository now has one active dashboard shell instead of two competing implementations.
+
+### 7. Preserved data isolation
 No real customer records, tune files, credentials or connected service data were introduced. The dashboard explicitly distinguishes demo readiness from production connectivity.
 
 ---
@@ -73,6 +77,7 @@ No real customer records, tune files, credentials or connected service data were
 | `/portal/SP-1842` | Customer-facing tune portal | Working demo |
 | `/workflow/SP-1842` | Tuner/customer state handoff simulator | Working demo |
 | `/closeout/SP-1842` | Final QA / archive / reopen | Working demo |
+| `/api/health` | Demo deployment / integration-mode health | Working |
 
 ---
 
@@ -87,6 +92,7 @@ No real customer records, tune files, credentials or connected service data were
 - Customer portal hides tuner-only reasoning.
 - Mobile command center exists separately from desktop.
 - Closeout preserves history rather than deleting a project from the workflow.
+- Every synthetic queue item has a usable destination; Alex/Carlos remain the deepest modeled scenarios.
 
 ### Still production work
 - Deep workflow pages are separate scenario states rather than reading one persistent project record.
@@ -104,14 +110,17 @@ No real customer records, tune files, credentials or connected service data were
 - Vercel project remains isolated as `subpar`.
 - Current Next.js version is 15.5.24.
 - Dashboard no longer depends on the old root `page.js` wrapper.
-- New dashboard code is scoped with `os-` CSS classes to avoid collisions with older demo styles.
+- Superseded root `page.js` and `layout.js` were removed.
+- Main dashboard data is centralized in `app/lib/demo-data.js`.
+- New dashboard code is scoped with `os-` CSS classes to avoid collisions with older deep-demo styles.
 - Responsive desktop/tablet/mobile rules are present.
 - Loading/error/not-found boundaries exist.
+- A no-cache `/api/health` route reports demo mode and disconnected integration state.
 
 ### Cleanup debt
-- Root-level legacy `page.js` and `layout.js` remain in the repository but are no longer required by the active `app/` dashboard. They can be removed once the new dashboard is fully accepted.
 - `app/subpar-logo.png/route.js` is an unusual compatibility route used because the logo binary lives at repository root instead of `public/`. Move the actual logo into `public/` in a later binary-asset cleanup.
 - Older `globals.css`, `app/extra.css` and `app/mobile.css` remain because deep demo routes still use those styles. Do not remove them until every deep screen has been migrated to the shared design system.
+- Deep scenario pages still own local synthetic state. Their next refactor should read from a shared server-backed project record once persistence exists.
 
 ---
 
