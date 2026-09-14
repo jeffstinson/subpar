@@ -24,6 +24,7 @@ Run these in order against the Subpar-only Supabase project:
 8. `0008_customer_intake_activation.sql`
 9. `0009_intake_handoff_queue.sql`
 10. `0010_vehicle_platform_intelligence.sql`
+11. `0011_log_intelligence.sql`
 
 Never skip a migration or run them against another project. The `schema_migrations` ledger should report the same ordered versions after provisioning.
 
@@ -61,18 +62,39 @@ For each example confirm:
 
 The initial parameter-pack rows are placeholders. Replace them with Doug-approved production versions before any automation sends them to customers.
 
-## 5. Prove identity boundaries
+## 5. Validate datalog intelligence
+
+Use `/log-lab` before enabling persistent automatic log analysis.
+
+Start with representative MHD logs supplied/approved by Doug for the engines he actually tunes most often. At minimum validate B58TU, B58, S55 and S58 examples before trusting their parser profiles.
+
+For each sample:
+
+1. Confirm the source CSV columns map to the intended canonical channels.
+2. Confirm required-channel coverage and parser confidence are accurate.
+3. Confirm boost target/actual, lambda, fuel-pressure, IAT, WGDC, ethanol and timing-correction values are interpreted with the correct units.
+4. Confirm the WOT segment heuristic is reasonable for Doug's review process.
+5. Confirm throttle-closure, boost-error, timing-correction and IAT review flags trigger only where Doug expects them.
+6. Intentionally remove or rename a required channel and confirm parser confidence drops rather than silently guessing.
+7. Confirm unknown columns remain visible as unmapped source columns.
+8. Confirm the parser summary is clearly assistive and never marks a tune/calibration safe or approved.
+9. Replace starter aliases/thresholds with Doug-approved versions in `log_parser_profiles` before persistent auto-analysis is enabled.
+10. Keep BM3/EcuTek parser profiles staged/manual until sample logs prove their channel mappings.
+
+The log parser is a review accelerator, not a tuning authority. A clean heuristic result is not approval to deliver a calibration.
+
+## 6. Prove identity boundaries
 
 1. Configure public Supabase auth variables.
 2. Create Doug as an `owner` in `internal_users`.
 3. Create a synthetic customer auth user mapped in `customer_portal_users`.
 4. Enable internal auth in preview first.
-5. Confirm Doug can access tuner/admin routes, including `/intelligence`, `/intake-queue`, `/messages`, `/outbound`, `/go-live` and live workspaces.
+5. Confirm Doug can access tuner/admin routes, including `/intelligence`, `/log-lab`, `/intake-queue`, `/messages`, `/outbound`, `/go-live` and live workspaces.
 6. Confirm the customer can access only their portal-visible project/file/message data.
 7. Confirm customer access to internal routes/APIs/files is denied.
 8. Test login refresh, session expiry and logout.
 
-## 6. Prove private storage
+## 7. Prove private storage
 
 For each storage lane — stock files, revisions, datalogs, parameter packs and customer files:
 
@@ -86,7 +108,7 @@ For each storage lane — stock files, revisions, datalogs, parameter packs and 
 
 Do not enable real customer/tune files until all lanes pass.
 
-## 7. Prove paid-order intake handoff
+## 8. Prove paid-order intake handoff
 
 With synthetic data first:
 
@@ -103,7 +125,7 @@ With synthetic data first:
 11. Replay activation and confirm the existing project is returned instead of creating duplicates.
 12. Confirm the project workspace still shows the intelligence profile after activation.
 
-## 8. Configure Wix with writes still off
+## 9. Configure Wix with writes still off
 
 Required variables:
 
@@ -122,7 +144,7 @@ Keep these false initially:
 
 Use the Integration Lab synthetic Wix order to confirm normalization, customer matching, platform inference, idempotency planning and intake handoff staging.
 
-## 9. Configure Gmail with sync/send off
+## 10. Configure Gmail with sync/send off
 
 Required variables:
 
@@ -139,7 +161,7 @@ Keep these false:
 
 Use the Integration Lab synthetic Gmail thread to confirm customer/project matching and queue routing logic.
 
-## 10. Historical-import dry run
+## 11. Historical-import dry run
 
 Use `/go-live` to plan Wix and Gmail imports before applying records.
 
@@ -161,7 +183,7 @@ Recommended starting defaults:
 
 Dedupe by Gmail thread ID + message ID. Link by customer email, then project context. Multiple candidate projects require review instead of automatic assignment.
 
-## 11. Apply historical data before live ingress
+## 12. Apply historical data before live ingress
 
 Only after dry-run counts/conflicts are approved:
 
@@ -176,7 +198,7 @@ Only after dry-run counts/conflicts are approved:
 
 Each applied Wix order creates/matches a customer, upserts one Wix order and creates one `intake_requests` record. It does not create a tune project until customer intake and Doug compatibility review are complete.
 
-## 12. Enable live Wix
+## 13. Enable live Wix
 
 1. Set `SUBPAR_WIX_WEBHOOK_ENABLED=true` while `SUBPAR_WIX_APPLY_ENABLED=false`.
 2. Send real signed test events from Wix.
@@ -187,7 +209,7 @@ Each applied Wix order creates/matches a customer, upserts one Wix order and cre
 7. Confirm one intake record and one staged invitation draft are produced.
 8. Confirm no duplicate customers/orders/intakes are created on replay.
 
-## 13. Enable Gmail read sync
+## 14. Enable Gmail read sync
 
 1. Start a Gmail watch and capture the current history ID/cutover point.
 2. Set `SUBPAR_GMAIL_SYNC_ENABLED=true`.
@@ -197,7 +219,7 @@ Each applied Wix order creates/matches a customer, upserts one Wix order and cre
 6. Confirm inbound customer replies move the linked project to `waiting_on=tuner` with a clear next action.
 7. Test an expired history cursor and confirm controlled full-sync fallback.
 
-## 14. Enable outbound Gmail last
+## 15. Enable outbound Gmail last
 
 Keep `SUBPAR_GMAIL_SEND_ENABLED=false` until historical sync is reconciled, project matching is reliable, drafts are reviewed, provider idempotency/recovery is proven and Doug approves the behavior.
 
@@ -207,13 +229,14 @@ Outbound flow is intentionally:
 
 The intake invitation uses the same approval boundary. Its raw secure intake link is created only immediately before provider send.
 
-## 15. Cutover completion criteria
+## 16. Cutover completion criteria
 
 The deployment is operational only when all of these are true:
 
 - database parity passed
-- migration ledger shows 0001–0010
+- migration ledger shows 0001–0011
 - vehicle intelligence representative tests passed
+- datalog intelligence sample-log validation passed
 - Doug internal identity passed
 - customer isolation passed
 - cross-boundary denial passed
@@ -237,7 +260,7 @@ If anything looks wrong:
 3. Set `SUBPAR_GMAIL_SEND_ENABLED=false`.
 4. Set `SUBPAR_IMPORT_APPLY_ENABLED=false` if a backfill is active.
 5. Leave signed Wix receipt capture on only if diagnosis needs provider events recorded.
-6. Do not delete integration history, intelligence profiles or project history. Pause and inspect the ledgers.
+6. Do not delete integration history, intelligence profiles, parser profiles or project history. Pause and inspect the ledgers.
 7. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
 
 Every live capability is designed to pause independently without taking the dashboard offline.
