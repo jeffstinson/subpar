@@ -20,8 +20,10 @@ Run the migrations in order:
 4. `0004_integration_staging.sql`
 5. `0005_go_live_imports.sql`
 6. `0006_intake_activation.sql`
+7. `0007_provisioning_state.sql`
+8. `0008_customer_intake_activation.sql`
 
-Never skip a migration or run them against another project.
+Never skip a migration or run them against another project. Confirm all eight are recorded in `schema_migrations` before cutover.
 
 ## 3. Seed synthetic data first
 
@@ -30,7 +32,7 @@ Never skip a migration or run them against another project.
 3. Switch `SUBPAR_DATA_MODE=supabase` while keeping real-data/integration gates false.
 4. Verify dashboard/project/customer/vehicle counts against the demo seed manifest.
 5. Verify Alex SP-1842, Carlos SP-1846 and all synthetic project routes render from Supabase.
-6. Turn synthetic seeding back off after parity is proven.
+6. Keep synthetic seeding enabled only long enough to run intake/auth/storage validation.
 
 ## 4. Prove identity boundaries
 
@@ -40,7 +42,7 @@ Never skip a migration or run them against another project.
 4. Enable internal auth in preview first.
 5. Confirm Doug can access tuner/admin routes.
 6. Confirm the customer can access only their portal-visible project/file/message data.
-7. Confirm customer access to `/project`, `/files`, `/security`, `/go-live`, internal APIs and internal files is denied.
+7. Confirm customer access to `/project`, `/files`, `/security`, `/go-live`, `/messages`, `/outbound`, `/intake-queue`, internal APIs and internal files is denied.
 8. Test login refresh, session expiry and logout.
 
 ## 5. Prove private storage
@@ -57,24 +59,43 @@ For each storage lane — stock files, revisions, datalogs, parameter packs and 
 
 Do not enable real customer/tune files until all five lanes pass.
 
-## 6. Configure Wix with writes still off
+## 6. Prove paid-order customer intake
+
+Before connecting real Wix orders, validate the complete synthetic intake flow:
+
+1. Open `/intake-queue` and create a secure customer intake link.
+2. Confirm only the token hash is stored in `intake_access_tokens`; the raw token is returned once.
+3. Open `/customer-intake/<token>` and submit the synthetic vehicle.
+4. Confirm intake moves to `ready` and compatibility remains `review`, not automatically approved.
+5. Approve compatibility as Doug.
+6. Activate the intake.
+7. Confirm exactly one vehicle, one tune project and the correct starting requirements are created.
+8. Retry the activation and confirm the same project is returned instead of a duplicate.
+9. Confirm the intake token is revoked after conversion.
+
+After synthetic parity passes, turn `SUBPAR_ALLOW_SYNTHETIC_SEED=false`.
+
+## 7. Configure Wix with reads/writes still off
 
 Required variables:
 
 - `SUBPAR_WIX_APP_ID`
 - `SUBPAR_WIX_APP_SECRET`
+- `SUBPAR_WIX_INSTANCE_ID`
 - `SUBPAR_WIX_WEBHOOK_PUBLIC_KEY`
 
 Keep these false initially:
 
 - `SUBPAR_REAL_DATA_APPROVED=false`
+- `SUBPAR_CONNECTION_TESTS_ENABLED=false`
+- `SUBPAR_WIX_READ_ENABLED=false`
 - `SUBPAR_WIX_WEBHOOK_ENABLED=false`
 - `SUBPAR_WIX_APPLY_ENABLED=false`
 - `SUBPAR_IMPORT_APPLY_ENABLED=false`
 
-Use the Integration Lab synthetic Wix order to confirm normalization, customer matching, platform inference and idempotency planning.
+When Doug approves access, enable connection tests first and prove OAuth. Historical read, webhook receipt and database apply are deliberately three different switches.
 
-## 7. Configure Gmail with sync/send off
+## 8. Configure Gmail with sync/send off
 
 Required variables:
 
@@ -89,11 +110,11 @@ Keep these false:
 - `SUBPAR_GMAIL_SYNC_ENABLED=false`
 - `SUBPAR_GMAIL_SEND_ENABLED=false`
 
-Use the Integration Lab synthetic Gmail thread to confirm customer/project matching and queue routing logic.
+Use connection preflight to verify OAuth before enabling mailbox ingestion.
 
-## 8. Historical-import dry run
+## 9. Historical-import dry run
 
-Use `/go-live` to plan Wix and Gmail imports before fetching/applying records.
+Use `/go-live` to plan Wix and Gmail imports before applying records.
 
 ### Wix
 
@@ -102,13 +123,7 @@ Recommended starting defaults:
 - 36 month lookback
 - 100 orders per batch
 
-Dry-run every batch and classify each record as:
-
-- matched
-- would create
-- skipped duplicate
-- conflict
-- failed
+Enable `SUBPAR_WIX_READ_ENABLED=true` only after connection testing succeeds. Process one cursor page per worker invocation. Classify each record as matched, would create, skipped duplicate, conflict or failed.
 
 Do not auto-merge two existing customers with different emails. Do not overwrite VIN/chassis conflicts. Ambiguous vehicle/project matches must go to manual review.
 
@@ -117,11 +132,12 @@ Do not auto-merge two existing customers with different emails. Do not overwrite
 Recommended starting defaults:
 
 - 24 month lookback
-- 250 threads per batch
+- 250 threads per planning batch
+- small hydrated thread chunks per worker invocation
 
 Dedupe by Gmail thread ID + message ID. Link by customer email, then project context. Multiple candidate projects require review instead of automatic assignment.
 
-## 9. Apply historical data before live ingress
+## 10. Apply historical data before live ingress
 
 Only after dry-run counts/conflicts are approved:
 
@@ -134,9 +150,9 @@ Only after dry-run counts/conflicts are approved:
 7. Reconcile again.
 8. Turn `SUBPAR_IMPORT_APPLY_ENABLED=false` when the historical window is complete.
 
-Each applied Wix order should create or match a customer, upsert one Wix order, and create one `intake_requests` record. It should not create a tune project until vehicle/chassis intake is complete.
+Each applied Wix order should create or match a customer, upsert one Wix order, and create one `intake_requests` record. It must not create a tune project until vehicle/chassis intake is reviewed and approved.
 
-## 10. Enable live Wix
+## 11. Enable live Wix
 
 1. Set `SUBPAR_WIX_WEBHOOK_ENABLED=true` while `SUBPAR_WIX_APPLY_ENABLED=false`.
 2. Send real signed test events from Wix.
@@ -147,7 +163,7 @@ Each applied Wix order should create or match a customer, upsert one Wix order, 
 7. Replay a planned event; it should safely advance from planned to applied exactly once.
 8. Confirm no duplicate customers/orders/intakes are created.
 
-## 11. Enable Gmail read sync
+## 12. Enable Gmail read sync
 
 1. Start a Gmail watch and capture the current history ID/cutover point.
 2. Set `SUBPAR_GMAIL_SYNC_ENABLED=true`.
@@ -157,7 +173,17 @@ Each applied Wix order should create or match a customer, upsert one Wix order, 
 6. Confirm inbound customer replies move the linked project to `waiting_on=tuner` with a clear next action.
 7. Test an expired history cursor and confirm controlled full-sync fallback.
 
-## 12. Enable outbound Gmail last
+## 13. Prove communications + outbound approval
+
+1. Open `/messages` and verify each Gmail thread shows customer, vehicle and active tune context.
+2. Queue a customer reply. It should become an outbound draft, not a provider send.
+3. Open `/outbound`.
+4. Confirm staff can prepare drafts but cannot approve/provider-send them.
+5. Confirm owner/tuner approval is required.
+6. Confirm provider send is impossible while `SUBPAR_GMAIL_SEND_ENABLED=false`.
+7. Confirm sent messages write the Gmail provider message ID back to the queue and conversation history.
+
+## 14. Enable outbound Gmail last
 
 Keep `SUBPAR_GMAIL_SEND_ENABLED=false` until:
 
@@ -167,22 +193,26 @@ Keep `SUBPAR_GMAIL_SEND_ENABLED=false` until:
 - outbound idempotency is proven
 - Doug approves the live send behavior
 
-Then enable outbound send separately. A draft/queue record must exist before provider send, and provider message IDs must be written back after send.
+Then enable outbound send separately. A queue record must exist and be approved before provider send.
 
-## 13. Cutover completion criteria
+## 15. Cutover completion criteria
 
 The deployment is considered operational only when all of these are true:
 
 - database parity passed
+- all eight schema migrations verified
 - Doug internal identity passed
 - customer isolation passed
 - cross-boundary denial passed
 - private file round-trip passed
+- customer intake token/review/activation passed
+- Wix OAuth/read access passed
 - Wix replay safety passed
 - Wix ambiguous-match handling passed
 - Gmail history resume passed
 - Gmail expired-cursor fallback passed
-- outbound email gate passed
+- communications project matching passed
+- outbound email approval/send gate passed
 - historical import reconciliation has zero unexplained records
 - live Wix and Gmail cursors/cutover checkpoints are recorded
 
@@ -193,8 +223,9 @@ If anything looks wrong:
 1. Set `SUBPAR_WIX_APPLY_ENABLED=false`.
 2. Set `SUBPAR_GMAIL_SYNC_ENABLED=false`.
 3. Set `SUBPAR_GMAIL_SEND_ENABLED=false`.
-4. Leave signed Wix receipt capture on only if diagnosis needs provider events recorded.
-5. Do not delete integration history. Pause and inspect receipt/import/cutover ledgers.
-6. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
+4. Set `SUBPAR_IMPORT_APPLY_ENABLED=false` for historical-import problems.
+5. Leave signed Wix receipt capture on only if diagnosis needs provider events recorded.
+6. Do not delete integration history. Pause and inspect receipt/import/cutover ledgers.
+7. Never “fix” a duplicate/conflict by deleting customer/tune history blindly.
 
-The design goal is that every live capability can be paused independently without taking the whole dashboard offline.
+Every live capability is deliberately pausable without taking the rest of Subpar OS offline.
