@@ -13,7 +13,7 @@ const samples = {
         paymentStatus:"PAID",
         currency:"USD",
         priceSummary:{ total:{ amount:"750.00", currency:"USD" } },
-        billingInfo:{ contactDetails:{ firstName:"Carlos", lastName:"Mendez", email:"carlos.mendez@example.com", phone:"555-0146" } },
+        billingInfo:{ contactDetails:{ firstName:"Carlos", lastName:"Mendez", email:"c.mendez.tuning@hotmail.com", phone:"555-0146" } },
         lineItems:[{ name:"S55 Custom Tune · bootmod3" }],
         customTextFields:[{ title:"Tuning platform", value:"bootmod3" }],
       }
