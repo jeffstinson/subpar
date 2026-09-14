@@ -17,10 +17,13 @@ const customerUploadKinds = new Set(["stock_file", "datalog", "customer_file"]);
 const immutableKinds = new Set(["stock_file", "tune_revision", "datalog", "parameter_pack"]);
 
 function visibilityFor(principal, kind, requested) {
+  // Tune revisions are never customer-visible merely because an uploader requests it.
+  // Only the revision-delivery engine may release the exact QA-approved artifact.
+  if (kind === "tune_revision") return "internal";
   if (principal.type === "customer") {
     return kind === "customer_file" ? "customer" : "internal";
   }
-  if (requested === "customer" && (kind === "tune_revision" || kind === "parameter_pack" || kind === "customer_file")) {
+  if (requested === "customer" && (kind === "parameter_pack" || kind === "customer_file")) {
     return "customer";
   }
   return "internal";
@@ -148,6 +151,6 @@ export async function POST(request) {
       next: ticket.kind === "datalog" ? (analysisError ? "log-stored-parser-needs-attention" : "log-parsed-and-routed") : "project-file-ready",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return Response.json({ ok: false, error: error.message }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ok: false, error: error.message }, { status: 400, headers: { "Cache-Control":"no-store" } });
   }
 }
