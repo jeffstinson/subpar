@@ -22,7 +22,15 @@ export default function DeliveryPortalClient({projectNumber}){
 
   async function acknowledge(installed){
     if(!data?.delivery?.id)return;setBusy(installed?"install":"ack");setNotice("");
-    try{const response=await fetch(`/api/v1/portal/deliveries/${encodeURIComponent(projectNumber)}?preview=alex`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"acknowledge",deliveryId:data.delivery.id,installed})});const body=await response.json();if(!response.ok)throw new Error(body.error||"Unable to save acknowledgement");setNotice(body.data?.dryRun?`Preview: ${installed?"install confirmation would open the next step":"delivery receipt would be acknowledged"}.`:installed?"Install confirmed. Your next step is open below.":"Revision receipt confirmed.");await load()}catch(error){setNotice(error.message)}finally{setBusy("")}
+    try{
+      const response=await fetch(`/api/v1/portal/deliveries/${encodeURIComponent(projectNumber)}?preview=alex`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"acknowledge",deliveryId:data.delivery.id,installed})});
+      const body=await response.json();if(!response.ok)throw new Error(body.error||"Unable to save acknowledgement");
+      setNotice(body.data?.dryRun?`Preview: ${installed?"installation confirmed and the correct next step opened":"delivery receipt acknowledged"}.`:installed?"Install confirmed. Your next step is open below.":"Revision receipt confirmed.");
+      if(body.data?.dryRun){
+        const now=new Date().toISOString();
+        setData(current=>({...current,delivery:{...current.delivery,status:installed?(current.delivery.nextStep==="request_log"?"relog_requested":"acknowledged"):"acknowledged",acknowledgedAt:current.delivery.acknowledgedAt||now,installedAt:installed?(current.delivery.installedAt||now):current.delivery.installedAt,nextLogRequestedAt:installed&&current.delivery.nextStep==="request_log"?(current.delivery.nextLogRequestedAt||now):current.delivery.nextLogRequestedAt}}));
+      }else await load();
+    }catch(error){setNotice(error.message)}finally{setBusy("")}
   }
 
   async function download(){
