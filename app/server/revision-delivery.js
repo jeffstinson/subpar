@@ -15,13 +15,15 @@ function fileName(file){return file?.originalName||file?.original_name||file?.na
 function fileVisibility(file){return file?.visibility||"internal"}
 function fileImmutable(file){return file?.immutable!==false}
 function fileRevisionId(file){return file?.revisionId||file?.revision_id||null}
+function fileBucket(file){return file?.storageBucket||file?.storage_bucket||null}
+function filePath(file){return file?.storagePath||file?.storage_path||null}
 
 function demoDeliveryWorkspace(projectNumber="SP-1842"){
   const project={id:"proj_sp1842",projectNumber,customerId:"cus_alex-rivera",vehicleId:"veh_alex-m340i",customer:{name:"Alex Rivera",email:"alex.rivera@gmail.com"},vehicle:{year:2021,make:"BMW",model:"M340i",chassis:"G20",engine:"B58TU"},platform:"MHD",fuelTarget:"E40",currentRevisionNumber:5,waitingOn:"tuner",nextAction:"QA and deliver Rev 5",metadata:{loggingRecipeKey:"mhd-b58tu-v1",parameterPackKey:"mhd-b58tu-pack"},requirements:[{type:"flash_eligibility",label:"DME / ROM flash eligibility",status:"complete",required:true},{type:"logging_setup",label:"MHD logging setup",status:"complete",required:true}]};
   const revision={id:"demo_rev5",revisionNumber:5,status:"draft",fuelTarget:"E40",customerSummary:"Small high-RPM timing cleanup while preserving the smoother torque delivery and boost response from Rev 4.",internalNotes:"Address the correction region noted in the Rev 4 review."};
   const tuneFile={id:"demo_rev5_file",revisionId:revision.id,kind:"tune_revision",originalName:"alex_m340i_rev5_e40.bin",visibility:"internal",immutable:true,sizeBytes:524288,sha256:"preview-sha256-generated-at-qa"};
   const gates=evaluateDeliveryGates({project,revision,tuneFile,customerSummary:revision.customerSummary});
-  return {mode:"demo",project,revision,tuneFiles:[tuneFile],primaryFile:tuneFile,delivery:{id:"demo_delivery_rev5",status:"draft",nextStep:"request_log",customerSummary:revision.customerSummary,internalQaNotes:"",qaSnapshot:{},fileSha256:null},gates,outbound:null,history:[{type:"log.review.decision",label:"Rev 5 created from datalog review",createdAt:new Date().toISOString()}]};
+  return {mode:"demo",project,revision,tuneFiles:[tuneFile],primaryFile:tuneFile,delivery:{id:"demo_delivery_rev5",status:"draft",nextStep:"request_log",customerSummary:revision.customerSummary,internalQaNotes:"",qaSnapshot:{},fileSha256:null,primary_file_id:tuneFile.id},gates,outbound:null,history:[{type:"log.review.decision",label:"Rev 5 created from datalog review",createdAt:new Date().toISOString()}]};
 }
 
 export function evaluateDeliveryGates({project,revision,tuneFile,customerSummary}){
@@ -46,14 +48,15 @@ export function evaluateDeliveryGates({project,revision,tuneFile,customerSummary
   return {pass:gates.every(item=>item.pass),passed:gates.filter(item=>item.pass).length,total:gates.length,gates,unresolvedCompatibility:unresolvedCompatibility.map(item=>({type:requirementType(item),label:item.label,status:item.status}))};
 }
 
-async function fileHash(supabase,file){
-  const existing=file?.sha256||null;if(existing)return existing;
-  if(!file?.storage_bucket||!file?.storage_path)return null;
-  const {data,error}=await supabase.storage.from(file.storage_bucket).download(file.storage_path);
+async function fileHash(supabase,file,{force=false}={}){
+  const existing=file?.sha256||null;if(existing&&!force)return existing;
+  const bucket=fileBucket(file),path=filePath(file);
+  if(!bucket||!path)return existing;
+  const {data,error}=await supabase.storage.from(bucket).download(path);
   if(error)throw new Error(`Unable to read private tune file for QA hash: ${error.message}`);
   const buffer=Buffer.from(await data.arrayBuffer());
   const hash=crypto.createHash("sha256").update(buffer).digest("hex");
-  await supabase.from("files").update({sha256:hash}).eq("id",file.id).is("sha256",null);
+  if(!existing){const {error:updateError}=await supabase.from("files").update({sha256:hash}).eq("id",file.id).is("sha256",null);if(updateError)throw new Error(`Unable to register tune-file hash: ${updateError.message}`)}
   return hash;
 }
 
@@ -69,10 +72,10 @@ export async function getRevisionDeliveryWorkspace({projectNumber="SP-1842",revi
   const project=await getProjectById(projectNumber);if(!project)throw new Error("Project not found");
   const selected=pickRevision(project,revision);if(!selected)return {mode:"supabase",project,revision:null,tuneFiles:[],primaryFile:null,delivery:null,gates:evaluateDeliveryGates({project,revision:null,tuneFile:null,customerSummary:""}),outbound:null,history:[]};
   const files=(project.files||[]).filter(file=>file.kind==="tune_revision"&&fileRevisionId(file)===selected.id);
-  const primaryFile=files[0]||null;
   const supabase=getSupabaseServerClient();
   const {data:delivery,error}=await supabase.from("revision_deliveries").select("*").eq("revision_id",selected.id).maybeSingle();
   if(error)throw new Error(`Unable to load revision delivery: ${error.message}`);
+  const primaryFile=delivery?.primary_file_id?files.find(file=>file.id===delivery.primary_file_id)||null:files[0]||null;
   let outbound=null;
   if(delivery?.outbound_action_id){const {data}=await supabase.from("outbound_actions").select("id,status,recipient,subject,approved_by,approved_at,sent_at,provider_message_id,last_error,created_at").eq("id",delivery.outbound_action_id).maybeSingle();outbound=data||null}
   const gates=evaluateDeliveryGates({project,revision:selected,tuneFile:primaryFile,customerSummary:delivery?.customer_summary||selected.customerSummary||selected.customer_summary});
@@ -86,7 +89,7 @@ async function context(projectNumber,revisionNumberInput){
   const project=await getProjectById(projectNumber);if(!project)throw new Error("Project not found");
   const revision=pickRevision(project,revisionNumberInput);if(!revision)throw new Error("Revision not found");
   const tuneFiles=(project.files||[]).filter(file=>file.kind==="tune_revision"&&fileRevisionId(file)===revision.id);
-  return {project,revision,tuneFile:tuneFiles[0]||null};
+  return {project,revision,tuneFiles,tuneFile:tuneFiles[0]||null};
 }
 
 export async function saveRevisionDeliveryDraft({projectNumber,revisionNumber:revNumber,customerSummary,internalNotes,nextStep="request_log",actor="Doug Talmadge"}){
@@ -106,7 +109,7 @@ export async function runRevisionDeliveryQa({projectNumber,revisionNumber:revNum
   const supabase=assertPersistent();const {project,revision,tuneFile}=await context(projectNumber,revNumber);
   const {data:existing}=await supabase.from("revision_deliveries").select("*").eq("revision_id",revision.id).maybeSingle();
   const gates=evaluateDeliveryGates({project,revision,tuneFile,customerSummary:existing?.customer_summary||revision.customerSummary||revision.customer_summary});
-  const hash=tuneFile?await fileHash(supabase,{...tuneFile,storage_bucket:tuneFile.storageBucket||tuneFile.storage_bucket,storage_path:tuneFile.storagePath||tuneFile.storage_path,sha256:tuneFile.sha256}):null;
+  const hash=tuneFile?await fileHash(supabase,tuneFile):null;
   const snapshot={evaluatedAt:new Date().toISOString(),evaluatedBy:actor,projectNumber:project.projectNumber,revisionNumber:revisionNumber(revision),platform:project.platform,fuelTarget:revision.fuelTarget||revision.fuel_target||project.fuelTarget||project.fuel_target||null,fileId:tuneFile?.id||null,fileName:tuneFile?fileName(tuneFile):null,fileSha256:hash,gates};
   const {data,error}=await supabase.from("revision_deliveries").upsert({project_id:project.id,revision_id:revision.id,primary_file_id:tuneFile?.id||null,status:gates.pass?"qa_ready":"draft",next_step:existing?.next_step||"request_log",customer_summary:existing?.customer_summary||revision.customerSummary||revision.customer_summary||null,internal_qa_notes:existing?.internal_qa_notes||null,qa_snapshot:snapshot,file_sha256:hash,updated_at:new Date().toISOString()},{onConflict:"revision_id"}).select("*").single();
   if(error)throw new Error(`Unable to persist revision QA: ${error.message}`);
@@ -121,7 +124,7 @@ export async function approveRevisionDelivery({projectNumber,revisionNumber:revN
   const {data,error}=await supabase.from("revision_deliveries").update({status:"approved",approved_by:actor,approved_at:now,updated_at:now}).eq("revision_id",revision.id).eq("status","qa_ready").select("*").single();
   if(error)throw new Error(`Unable to approve revision delivery: ${error.message}`);
   await supabase.from("revisions").update({status:"ready",updated_at:now}).eq("id",revision.id).in("status",["draft","ready"]);
-  await supabase.from("events").upsert({project_id:project.id,customer_id:project.customerId||null,vehicle_id:project.vehicleId||null,event_type:"revision.delivery.approved",actor_type:"internal",actor_id:actor,visibility:"internal",payload:{revisionId:revision.id,revisionNumber:revisionNumber(revision),deliveryId:data.id,fileSha256:data.file_sha256},idempotency_key:`revision-delivery-approved:${revision.id}`},{onConflict:"idempotency_key",ignoreDuplicates:true});
+  await supabase.from("events").upsert({project_id:project.id,customer_id:project.customerId||null,vehicle_id:project.vehicleId||null,event_type:"revision.delivery.approved",actor_type:"internal",actor_id:actor,visibility:"internal",payload:{revisionId:revision.id,revisionNumber:revisionNumber(revision),deliveryId:data.id,fileSha256:data.file_sha256,fileId:data.primary_file_id},idempotency_key:`revision-delivery-approved:${revision.id}`},{onConflict:"idempotency_key",ignoreDuplicates:true});
   return {dryRun:false,approved:true,delivery:data};
 }
 
@@ -133,24 +136,30 @@ function deliveryEmail({project,revision,summary,nextStep}){
 
 export async function deliverRevision({projectNumber,revisionNumber:revNumber,actor="Doug Talmadge",stageEmail=true}){
   if(getDataMode()!=="supabase"){const workspace=await demoDeliveryWorkspace(projectNumber);return {dryRun:true,delivery:{...workspace.delivery,status:"delivered",deliveredAt:new Date().toISOString()},emailDraft:stageEmail?{dryRun:true,status:"draft"}:null,nextAction:"Install Rev 5 and upload the next log"}}
-  const supabase=assertPersistent();const {project,revision,tuneFile}=await context(projectNumber,revNumber);if(!tuneFile)throw new Error("Approved revision is missing its tune file");
+  const supabase=assertPersistent();const {project,revision,tuneFiles}=await context(projectNumber,revNumber);
   const {data:delivery,error:loadError}=await supabase.from("revision_deliveries").select("*").eq("revision_id",revision.id).single();if(loadError)throw new Error(`Unable to load approved delivery: ${loadError.message}`);
-  if(delivery.status==="delivered"||delivery.status==="acknowledged"||delivery.status==="relog_requested")return {dryRun:false,replayed:true,delivery};
+  if(delivery.status==="delivered"||delivery.status==="acknowledged"||delivery.status==="relog_requested"||delivery.status==="closed")return {dryRun:false,replayed:true,delivery};
   if(delivery.status!=="approved")throw new Error("Revision must be QA-approved before delivery");
-  const now=new Date().toISOString();
+  const approvedFile=tuneFiles.find(file=>file.id===delivery.primary_file_id)||null;
+  if(!approvedFile)throw new Error("The exact QA-approved tune artifact is no longer attached to this revision");
+  if(!fileImmutable(approvedFile))throw new Error("The QA-approved tune artifact is not immutable");
+  if(fileVisibility(approvedFile)!=="internal")throw new Error("The QA-approved tune artifact must still be private before release");
+  const observedHash=await fileHash(supabase,approvedFile,{force:true});
+  if(!delivery.file_sha256||!observedHash||String(delivery.file_sha256).toLowerCase()!==String(observedHash).toLowerCase())throw new Error("Tune artifact changed after QA approval. Run QA again before delivery.");
+
+  const {data:release,error:releaseError}=await supabase.rpc("subpar_release_revision_delivery",{p_delivery_id:delivery.id,p_actor:actor,p_observed_sha256:observedHash});
+  if(releaseError)throw new Error(`Unable to release approved revision atomically: ${releaseError.message}`);
+  const releaseResult=release||{};
   const nextStep=delivery.next_step||"request_log";const summary=String(delivery.customer_summary||revision.customerSummary||revision.customer_summary||"").trim();
-  const nextAction=nextStep==="request_log"?`Install Rev ${revisionNumber(revision)} and upload the next log`:nextStep==="feedback_only"?`Install Rev ${revisionNumber(revision)} and send feedback`:`Confirm Rev ${revisionNumber(revision)} installation`;
-  await supabase.from("files").update({visibility:"customer"}).eq("id",tuneFile.id).eq("kind","tune_revision");
-  const {error:revisionError}=await supabase.from("revisions").update({status:"delivered",customer_summary:summary,published_at:now,updated_at:now}).eq("id",revision.id).eq("status","ready");if(revisionError)throw new Error(`Unable to publish revision: ${revisionError.message}`);
-  await supabase.from("tune_projects").update({current_revision_number:revisionNumber(revision),status:"revision_delivered",stage:"revision",waiting_on:"customer",next_action:nextAction,customer_visible_status:`Rev ${revisionNumber(revision)} delivered`,updated_at:now}).eq("id",project.id);
   let emailDraft=null,emailError=null;
   if(stageEmail){
     try{const mail=deliveryEmail({project,revision,summary,nextStep});emailDraft=await queueGmailDraft({projectNumber:project.projectNumber,to:project.customer?.email,subject:mail.subject,body:mail.body,requestId:`revision-delivery-${revision.id}`,createdBy:actor});}
     catch(error){emailError=error.message}
   }
-  const {data:updated,error:updateError}=await supabase.from("revision_deliveries").update({status:"delivered",outbound_action_id:emailDraft?.id||delivery.outbound_action_id||null,delivered_by:actor,delivered_at:now,updated_at:now}).eq("id",delivery.id).select("*").single();if(updateError)throw new Error(`Revision published but delivery ledger update failed: ${updateError.message}`);
-  await supabase.from("events").upsert({project_id:project.id,customer_id:project.customerId||null,vehicle_id:project.vehicleId||null,event_type:"revision.delivered",actor_type:"internal",actor_id:actor,visibility:"both",payload:{revisionId:revision.id,revisionNumber:revisionNumber(revision),deliveryId:delivery.id,fileId:tuneFile.id,nextStep,emailDraftId:emailDraft?.id||null,emailStaged:Boolean(emailDraft),emailError},idempotency_key:`revision-delivered:${revision.id}`},{onConflict:"idempotency_key",ignoreDuplicates:true});
-  return {dryRun:false,replayed:false,delivery:updated,emailDraft,emailError,nextAction};
+  if(emailDraft?.id){await supabase.from("revision_deliveries").update({outbound_action_id:emailDraft.id,updated_at:new Date().toISOString()}).eq("id",delivery.id)}
+  if(emailDraft||emailError){await supabase.from("events").upsert({project_id:project.id,customer_id:project.customerId||null,vehicle_id:project.vehicleId||null,event_type:"revision.delivery.notification.staged",actor_type:"internal",actor_id:actor,visibility:"internal",payload:{revisionId:revision.id,deliveryId:delivery.id,emailDraftId:emailDraft?.id||null,emailStaged:Boolean(emailDraft),emailError},idempotency_key:`revision-delivery-notification:${revision.id}`},{onConflict:"idempotency_key",ignoreDuplicates:true})}
+  const {data:updated}=await supabase.from("revision_deliveries").select("*").eq("id",delivery.id).single();
+  return {dryRun:false,replayed:Boolean(releaseResult.replayed),delivery:updated||{...delivery,status:"delivered"},emailDraft,emailError,nextAction:releaseResult.nextAction||releaseResult.next_action||null,fileId:approvedFile.id,fileSha256:observedHash};
 }
 
 export async function getCustomerRevisionDelivery({projectNumber,principal}){
@@ -182,4 +191,4 @@ export async function acknowledgeRevisionDelivery({projectNumber,deliveryId,inst
   return {dryRun:false,delivery:updated,status,nextLogRequestedAt};
 }
 
-export function revisionDeliveryReadiness(){const integration=getIntegrationReadiness();return {dataMode:getDataMode(),mutationsEnabled:mutationsEnabled(),privateTuneFiles:true,qaBeforeVisibility:true,approvalBeforeDelivery:true,portalDelivery:true,gmailDraftStaging:true,gmailSendEnabled:integration.gmail.readyForOutbound,customerAcknowledgement:true,nextLogLoop:true};}
+export function revisionDeliveryReadiness(){const integration=getIntegrationReadiness();return {dataMode:getDataMode(),mutationsEnabled:mutationsEnabled(),privateTuneFiles:true,qaBeforeVisibility:true,approvalBeforeDelivery:true,artifactPinnedAtQa:true,hashRecheckedAtRelease:true,atomicRelease:true,portalDelivery:true,gmailDraftStaging:true,gmailSendEnabled:integration.gmail.readyForOutbound,customerAcknowledgement:true,nextLogLoop:true};}
