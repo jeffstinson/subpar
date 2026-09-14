@@ -150,6 +150,15 @@ revoke all on function subpar_operational_integrity_snapshot() from public;
 revoke all on function subpar_operational_integrity_snapshot() from anon;
 revoke all on function subpar_operational_integrity_snapshot() from authenticated;
 
+-- Explicit service-role execution grants. Browser/API roles remain revoked.
+-- This removes any dependency on Supabase's default function EXECUTE privileges.
+grant execute on function subpar_next_project_number() to service_role;
+grant execute on function subpar_activate_intake(uuid,text) to service_role;
+grant execute on function subpar_release_revision_delivery(uuid,text,text) to service_role;
+grant execute on function subpar_close_tune_cycle(uuid,text) to service_role;
+grant execute on function subpar_start_new_tune_cycle(uuid,text,text,jsonb,text,text) to service_role;
+grant execute on function subpar_operational_integrity_snapshot() to service_role;
+
 insert into schema_migrations(version,name) values ('0015','activation_readiness') on conflict(version) do nothing;
 
 insert into setup_checkpoints(checkpoint_key,status,detail)
