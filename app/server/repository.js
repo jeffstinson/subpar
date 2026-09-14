@@ -108,8 +108,9 @@ export async function getReadinessData() {
       "supabase/migrations/0009_intake_handoff_queue.sql",
       "supabase/migrations/0010_vehicle_platform_intelligence.sql",
       "supabase/migrations/0011_log_intelligence.sql",
+      "supabase/migrations/0012_log_review_workflow.sql",
     ],
-    schemaHead: "0011_log_intelligence",
+    schemaHead: "0012_log_review_workflow",
     syntheticSeed: "supabase/seed/0001_demo.sql",
   };
 }
