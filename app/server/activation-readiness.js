@@ -12,6 +12,7 @@ import { getCustomerLifecycleHistory,getLifecycleWorkspace } from "./tune-lifecy
 
 const EXPECTED_SCHEMA_HEAD="0015";
 const PASS_CHECKPOINT_STATES=new Set(["passed","ready"]);
+const PROVIDER_EVIDENCE_MAX_AGE_MS=24*60*60*1000;
 
 function check(key,category,status,detail,{severity="blocker",metadata={}}={}){
   return {key,category,severity,status,detail,metadata};
@@ -140,11 +141,12 @@ async function smokeChecks(){
       }
     }
     const project=await getProjectById("SP-1842");
+    if(!project)throw new Error("SP-1842 synthetic project could not be resolved");
     const [review,delivery,lifecycle,history]=await Promise.all([
       getLogReviewWorkspace({projectNumber:"SP-1842"}),
       getRevisionDeliveryWorkspace({projectNumber:"SP-1842"}),
       getLifecycleWorkspace({projectNumber:"SP-1842"}),
-      getCustomerLifecycleHistory({projectNumber:"SP-1842",principal:{type:"customer",customerId:"cus_alex-rivera",projectNumbers:["SP-1842"]}}),
+      getCustomerLifecycleHistory({projectNumber:"SP-1842",principal:{type:"customer",customerId:project.customerId||project.customer?.id||null,projectNumbers:["SP-1842"]}}),
     ]);
     const checks=[];
     checks.push(project?.projectNumber?pass("smoke-project","synthetic-smoke","Synthetic project repository read succeeded."):fail("smoke-project","synthetic-smoke","Synthetic project repository read did not return SP-1842."));
@@ -187,8 +189,11 @@ async function providerEvidenceChecks(){
   return ["wix","gmail"].map(provider=>{
     const row=latest[provider];
     if(!row)return fail(`provider-evidence-${provider}`,"provider-evidence",`No successful ${provider} connection test has been recorded yet.`);
+    const testedAt=row.tested_at?new Date(row.tested_at).getTime():0;
+    const stale=!testedAt||Date.now()-testedAt>PROVIDER_EVIDENCE_MAX_AGE_MS;
     if(row.status!=="pass")return fail(`provider-evidence-${provider}`,"provider-evidence",`Latest ${provider} connection test is ${row.status}: ${row.detail||"no detail"}.`,{metadata:{testedAt:row.tested_at,testedBy:row.tested_by}});
-    return pass(`provider-evidence-${provider}`,"provider-evidence",`Latest ${provider} connection test passed${row.tested_at?` at ${new Date(row.tested_at).toISOString()}`:""}.`,{metadata:{testedAt:row.tested_at,testedBy:row.tested_by}});
+    if(stale)return fail(`provider-evidence-${provider}`,"provider-evidence",`Latest ${provider} connection test is older than 24 hours. Run Provider Preflight again before activation.`,{metadata:{testedAt:row.tested_at,testedBy:row.tested_by}});
+    return pass(`provider-evidence-${provider}`,"provider-evidence",`Latest ${provider} connection test passed within the last 24 hours.`,{metadata:{testedAt:row.tested_at,testedBy:row.tested_by}});
   });
 }
 
@@ -254,7 +259,7 @@ export async function runActivationAudit({actor="Doug Talmadge",includeProviderP
   const checkpoints=await checkpointSnapshot();
   const summary=summarize(checks);
   const phases=phaseReadiness(checks,checkpoints,context);
-  const audit={generatedAt:new Date().toISOString(),mode:getDataMode(),environment:process.env.NEXT_PUBLIC_SUBPAR_ENV||"preview",commit:process.env.VERCEL_GIT_COMMIT_SHA||null,summary,phases,checks,checkpoints,manifest:{schemaHead:EXPECTED_SCHEMA_HEAD,migrations:GO_LIVE_MIGRATIONS.map(item=>item.id),realDataApproved:context.integrations.realDataApproved,mutationsEnabled:mutationsEnabled(),providerProbesRequested:Boolean(includeProviderProbes)}};
+  const audit={generatedAt:new Date().toISOString(),mode:getDataMode(),environment:process.env.NEXT_PUBLIC_SUBPAR_ENV||"preview",commit:process.env.VERCEL_GIT_COMMIT_SHA||null,summary,phases,checks,checkpoints,manifest:{schemaHead:EXPECTED_SCHEMA_HEAD,migrations:GO_LIVE_MIGRATIONS.map(item=>item.id),realDataApproved:context.integrations.realDataApproved,mutationsEnabled:mutationsEnabled(),providerProbesRequested:Boolean(includeProviderProbes),providerEvidenceMaxAgeHours:24}};
   audit.persistence=persist?await persistAudit(audit,actor):{persisted:false,reason:"Persistence was not requested."};
   return audit;
 }
@@ -270,7 +275,7 @@ export async function listActivationAudits(limit=8){
 export function activationCutoverSequence(){return [
   {step:1,key:"infrastructure",label:"Provision isolated infrastructure",detail:"Dedicated Supabase, private buckets, auth identities and all migrations through 0015."},
   {step:2,key:"synthetic",label:"Prove the synthetic end-to-end loop",detail:"Intake → project → parser → review → revision → delivery → closeout → Cycle 2 retune."},
-  {step:3,key:"providers",label:"Verify provider connections",detail:"Wix OAuth and Gmail OAuth/profile probes can run before ingest/apply/send gates are enabled."},
+  {step:3,key:"providers",label:"Verify provider connections",detail:"Wix OAuth and Gmail OAuth/profile probes can run before ingest/apply/send gates are enabled; final evidence must be less than 24 hours old."},
   {step:4,key:"history",label:"Dry-run and reconcile history",detail:"Wix orders + Gmail threads must reconcile with no unexplained records or ambiguous auto-merges."},
   {step:5,key:"live-read",label:"Enable live reads first",detail:"Wix ingress capture and Gmail read sync before any provider write/send capability."},
   {step:6,key:"live-apply",label:"Enable controlled applies",detail:"Wix order apply/import mutations only after replay/conflict tests pass."},
