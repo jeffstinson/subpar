@@ -41,9 +41,10 @@ export default function FileManager({project}){
         const {error}=await supabase.storage.from(ticket.bucket).uploadToSignedUrl(ticket.path,ticket.token,file,{contentType:file.type||"application/octet-stream",upsert:false});
         if(error)throw new Error(`Private storage upload failed: ${error.message}`);
       }
-      const finalize=await fetch("/api/v1/storage/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project:project.projectNumber,finalizeToken:ticket.finalizeToken,principal:"doug",mimeType:file.type,sizeBytes:file.size,visibility:kind==="tune_revision"||kind==="parameter_pack"?"customer":"internal"})});
+      const finalize=await fetch("/api/v1/storage/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project:project.projectNumber,finalizeToken:ticket.finalizeToken,principal:"doug",mimeType:file.type,sizeBytes:file.size,visibility:kind==="parameter_pack"?"customer":"internal"})});
       const done=await finalize.json(); if(!finalize.ok)throw new Error(done.error||"File finalization failed");
-      setStatus(done.dryRun?`Preview complete: ${file.name} passed ticket → upload → immutable registration flow.`:`${file.name} registered to ${project.projectNumber}. Refresh to view it.`);
+      const releaseNote=kind==="tune_revision"?" Tune revisions remain internal until the Revision Delivery workspace passes QA, approval and release.":"";
+      setStatus(done.dryRun?`Preview complete: ${file.name} passed ticket → upload → immutable registration flow.${releaseNote}`:`${file.name} registered to ${project.projectNumber}.${releaseNote} Refresh to view it.`);
     }catch(error){setStatus(error.message)}finally{setBusy(false);if(input.current)input.current.value=""}
   }
 
@@ -52,6 +53,6 @@ export default function FileManager({project}){
     {status&&<div className={styles.status}><CheckCircle2 size={15}/>{status}</div>}
     <div className={styles.grid}>{files.map(file=><article className={styles.card} key={file.id}><div className={styles.fileIcon}><File size={20}/></div><div className={styles.fileBody}><span>{labels[file.kind]||file.kind}</span><h3>{file.name||file.originalName}</h3><p>{file.visibility==="customer"?"Customer-visible":"Internal only"} · {file.status||"stored"}</p><div className={styles.meta}><span><LockKeyhole size={12}/>Private</span><span><FileKey2 size={12}/>{file.immutable===false?"Mutable":"Immutable history"}</span></div></div><button disabled={busy} onClick={()=>download(file)} title="Create secure download"><Download size={15}/></button></article>)}</div>
     {!files.length&&<div className={styles.empty}><Eye size={24}/><b>No files in this view</b><p>Upload a file above or choose another category.</p></div>}
-    <aside className={styles.note}><LockKeyhole size={17}/><div><b>No public tune-file URLs.</b><p>Every download is authorized against the project and gets a short-lived signed URL. Uploads use a unique private path, then Subpar OS verifies the object and registers immutable metadata.</p></div></aside>
+    <aside className={styles.note}><LockKeyhole size={17}/><div><b>No public tune-file URLs.</b><p>Every download is authorized against the project and gets a short-lived signed URL. Tune revisions always register internal first and can only become customer-visible through the QA-approved Revision Delivery flow.</p></div></aside>
   </section>;
 }
