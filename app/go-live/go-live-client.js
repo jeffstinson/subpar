@@ -11,15 +11,16 @@ export default function GoLiveClient(){
   const [form,setForm]=useState(defaults.wix);
   const [plan,setPlan]=useState(null);
   const [batch,setBatch]=useState(null);
+  const [runResult,setRunResult]=useState(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
 
   function switchProvider(next){
-    setProvider(next);setForm(defaults[next]);setPlan(null);setBatch(null);setError("");
+    setProvider(next);setForm(defaults[next]);setPlan(null);setBatch(null);setRunResult(null);setError("");
   }
 
   async function buildPlan(){
-    setBusy(true);setError("");setBatch(null);
+    setBusy(true);setError("");setBatch(null);setRunResult(null);
     try{
       const res=await fetch("/api/v1/go-live/import-plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider,...form,principal:"doug"})});
       const body=await res.json();
@@ -30,12 +31,26 @@ export default function GoLiveClient(){
 
   async function createBatch(){
     if(!plan)return;
-    setBusy(true);setError("");
+    setBusy(true);setError("");setRunResult(null);
     try{
       const res=await fetch("/api/v1/go-live/batches",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({integration:provider,importType:plan.importType,mode:"dry-run",expectedCount:plan.records,options:{lookbackMonths:plan.lookbackMonths,batchSize:plan.batchSize},principal:"doug"})});
       const body=await res.json();
       if(!res.ok)throw new Error(body.error||"Unable to create import batch");
       setBatch(body.data);
+    }catch(err){setError(err.message)}finally{setBusy(false)}
+  }
+
+  async function runNextPage(){
+    if(!batch?.id||batch?.dryRun)return;
+    setBusy(true);setError("");
+    try{
+      const res=await fetch(`/api/v1/go-live/batches/${encodeURIComponent(batch.id)}/run`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({principal:"doug"})});
+      const body=await res.json();
+      if(!res.ok)throw new Error(body.error||"Import page failed");
+      setRunResult(body.result);
+      const refreshed=await fetch(`/api/v1/go-live/batches?id=${encodeURIComponent(batch.id)}`);
+      const refreshedBody=await refreshed.json();
+      if(refreshed.ok)setBatch(refreshedBody.data);
     }catch(err){setError(err.message)}finally{setBusy(false)}
   }
 
@@ -54,7 +69,9 @@ export default function GoLiveClient(){
         <label><span>Batch size</span><input type="number" min="10" max="1000" value={form.batchSize} onChange={e=>setForm({...form,batchSize:Number(e.target.value)})}/></label>
         <button className={styles.primary} onClick={buildPlan} disabled={busy}>{busy?<RefreshCw className={styles.spin} size={14}/>:<Play size={14}/>}Build dry-run plan</button>
         {plan&&<button className={styles.primary} style={{background:"#111713",color:"#8ed0a0",borderColor:"#365943"}} onClick={createBatch} disabled={busy}><DatabaseZap size={14}/>Create tracked dry-run batch</button>}
-        {batch&&<div style={{marginTop:10,padding:"9px 10px",border:"1px solid #31573d",borderRadius:9,background:"rgba(97,189,124,.08)",display:"flex",gap:8,alignItems:"center",color:"#81cc93",fontSize:9}}><CheckCircle2 size={14}/><div><b style={{display:"block",fontSize:10}}>Batch staged</b><span>{batch.id}</span></div></div>}
+        {batch&&<div style={{marginTop:10,padding:"9px 10px",border:"1px solid #31573d",borderRadius:9,background:"rgba(97,189,124,.08)",display:"flex",gap:8,alignItems:"center",color:"#81cc93",fontSize:9}}><CheckCircle2 size={14}/><div><b style={{display:"block",fontSize:10}}>Batch staged</b><span>{batch.id}</span><small style={{display:"block",marginTop:2,color:"#72907a"}}>{batch.dryRun?"Preview mode — connect Supabase to execute provider pages.":`${batch.status||"planned"} · ${batch.scanned_count??batch.scannedCount??0} scanned`}</small></div></div>}
+        {batch&&!batch.dryRun&&<button className={styles.primary} style={{background:"#162019",color:"#a7ddb4",borderColor:"#416c4c"}} onClick={runNextPage} disabled={busy||batch.status==="completed"}><Play size={14}/>{batch.status==="completed"?"Import reconciled":"Run next provider page"}</button>}
+        {runResult&&<div style={{marginTop:10,padding:"10px",border:"1px solid #27332b",borderRadius:9,background:"#101512",fontSize:9,color:"#8b978f",lineHeight:1.5}}><b style={{color:"#d8e0da"}}>{runResult.provider?.toUpperCase()} page complete</b><br/>{runResult.pageCount} processed · {runResult.status}{runResult.hasNext?" · cursor saved":" · historical range complete"}</div>}
         {error&&<div className={styles.error}><TriangleAlert size={14}/>{error}</div>}
       </div>
       <div className={styles.planResult}>
