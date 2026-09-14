@@ -53,8 +53,8 @@ export default function GoLiveClient(){
         <label><span>Lookback months</span><input type="number" min="1" max="60" value={form.months} onChange={e=>setForm({...form,months:Number(e.target.value)})}/></label>
         <label><span>Batch size</span><input type="number" min="10" max="1000" value={form.batchSize} onChange={e=>setForm({...form,batchSize:Number(e.target.value)})}/></label>
         <button className={styles.primary} onClick={buildPlan} disabled={busy}>{busy?<RefreshCw className={styles.spin} size={14}/>:<Play size={14}/>}Build dry-run plan</button>
-        {plan&&<button className={styles.secondary} onClick={createBatch} disabled={busy}><DatabaseZap size={14}/>Create tracked dry-run batch</button>}
-        {batch&&<div className={styles.success}><CheckCircle2 size={14}/><div><b>Batch staged</b><span>{batch.id}</span></div></div>}
+        {plan&&<button className={styles.primary} style={{background:"#111713",color:"#8ed0a0",borderColor:"#365943"}} onClick={createBatch} disabled={busy}><DatabaseZap size={14}/>Create tracked dry-run batch</button>}
+        {batch&&<div style={{marginTop:10,padding:"9px 10px",border:"1px solid #31573d",borderRadius:9,background:"rgba(97,189,124,.08)",display:"flex",gap:8,alignItems:"center",color:"#81cc93",fontSize:9}}><CheckCircle2 size={14}/><div><b style={{display:"block",fontSize:10}}>Batch staged</b><span>{batch.id}</span></div></div>}
         {error&&<div className={styles.error}><TriangleAlert size={14}/>{error}</div>}
       </div>
       <div className={styles.planResult}>
