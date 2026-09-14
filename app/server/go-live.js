@@ -3,6 +3,7 @@ import { getAuthReadiness, getDataMode, getPersistenceReadiness } from "./env";
 import { getIntegrationReadiness } from "./integrations";
 import { getStorageReadiness } from "./storage";
 import { getSupabaseServerClient } from "./supabase-server";
+import { getWixReadReadiness } from "./wix-client";
 
 export const GO_LIVE_MIGRATIONS = [
   { id:"0001", file:"0001_core.sql", purpose:"Normalized customer / vehicle / tune data core" },
@@ -20,7 +21,7 @@ export const GO_LIVE_ENV_GROUPS = [
   },
   {
     id:"wix", label:"Wix", required:true,
-    vars:["SUBPAR_WIX_APP_ID","SUBPAR_WIX_APP_SECRET","SUBPAR_WIX_WEBHOOK_PUBLIC_KEY"],
+    vars:["SUBPAR_WIX_APP_ID","SUBPAR_WIX_APP_SECRET","SUBPAR_WIX_INSTANCE_ID","SUBPAR_WIX_WEBHOOK_PUBLIC_KEY"],
   },
   {
     id:"gmail", label:"Gmail", required:true,
@@ -28,7 +29,7 @@ export const GO_LIVE_ENV_GROUPS = [
   },
   {
     id:"gates", label:"Activation gates", required:true,
-    vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_IMPORT_APPLY_ENABLED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"],
+    vars:["SUBPAR_REAL_DATA_APPROVED","SUBPAR_IMPORT_APPLY_ENABLED","SUBPAR_WIX_READ_ENABLED","SUBPAR_WIX_WEBHOOK_ENABLED","SUBPAR_WIX_APPLY_ENABLED","SUBPAR_GMAIL_SYNC_ENABLED","SUBPAR_GMAIL_SEND_ENABLED"],
   },
 ];
 
@@ -43,6 +44,7 @@ export function getGoLiveReadiness() {
   const access = getAccessReadiness();
   const storage = getStorageReadiness();
   const integrations = getIntegrationReadiness();
+  const wixRead = getWixReadReadiness();
 
   const checks = [
     { id:"isolated", label:"Dedicated Subpar environment", ready:true, detail:"Architecture explicitly rejects shared Stince AI credentials/projects." },
@@ -50,6 +52,7 @@ export function getGoLiveReadiness() {
     { id:"public-auth", label:"Supabase public auth", ready:auth.publicAuthConfigured, detail:auth.publicAuthConfigured?"Public auth configuration detected.":"Anon/public key still required for login and private upload handoff." },
     { id:"file-secret", label:"Private file ticket secret", ready:storage.ticketSecretConfigured, detail:storage.ticketSecretConfigured?"Upload finalization signing is ready.":"32+ character server-only file ticket secret required." },
     { id:"roles", label:"Role/portal permission model", ready:access.defaultDeny && access.customerPortalIdentity === "modeled", detail:"Owner/tuner/staff/customer permissions default deny." },
+    { id:"wix-read-creds", label:"Wix app installation credentials", ready:wixRead.credentials, detail:wixRead.credentials?"App ID, secret and Doug-site instance ID detected.":"Wix App ID + secret + installation instance ID are required for historical order reads." },
     { id:"wix-key", label:"Wix signed webhook key", ready:integrations.wix.publicKeyConfigured, detail:integrations.wix.publicKeyConfigured?"Signed Wix ingress can be verified.":"Dedicated Wix webhook public key required." },
     { id:"gmail-oauth", label:"Gmail OAuth", ready:integrations.gmail.oauthConfigured, detail:integrations.gmail.oauthConfigured?"Gmail read-sync credentials detected.":"Dedicated Google OAuth client + refresh token required." },
     { id:"gmail-watch", label:"Gmail watch / PubSub", ready:integrations.gmail.watchConfigured, detail:integrations.gmail.watchConfigured?"Mailbox push cursor path configured.":"Pub/Sub topic required for push-based Gmail sync." },
@@ -72,6 +75,7 @@ export function getGoLiveReadiness() {
     envGroups,
     migrations:GO_LIVE_MIGRATIONS,
     integrationReadiness:integrations,
+    wixReadReadiness:wixRead,
     importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED === "true",
     recommendedSequence:[
       "Provision dedicated Subpar Supabase project",
@@ -79,12 +83,13 @@ export function getGoLiveReadiness() {
       "Seed synthetic records and verify dashboard parity",
       "Create Doug owner + synthetic customer identities",
       "Verify login, route boundaries and private files",
-      "Configure Wix + Gmail credentials with all apply/send gates OFF",
-      "Run historical import dry-runs and resolve conflicts",
+      "Configure Wix + Gmail credentials with all read/apply/send gates OFF",
+      "Enable Wix historical read and run dry-run backfill scans",
+      "Run Gmail historical dry-run and resolve customer/project conflicts",
       "Enable historical import apply and reconcile provider counts",
       "Enable signed Wix ingress",
-      "Apply historical Wix orders, then enable Wix live apply",
-      "Run Gmail historical sync, then enable Gmail read sync",
+      "Enable Wix live apply after replay tests",
+      "Enable Gmail read sync from the recorded cutover cursor",
       "Enable outbound Gmail only after message approval tests",
     ],
   };
@@ -135,6 +140,7 @@ export function goLiveValidationSuite() {
     { id:"auth-customer", name:"Customer isolation", passCondition:"Synthetic customer can access only their portal/project-visible data" },
     { id:"cross-boundary", name:"Cross-boundary denial", passCondition:"Customer token is rejected from tuner routes and internal files" },
     { id:"files", name:"Private file round-trip", passCondition:"Signed upload → verify → register → signed download succeeds" },
+    { id:"wix-oauth", name:"Wix read access", passCondition:"Site-scoped OAuth token succeeds and paid-order search returns a deterministic cursor" },
     { id:"wix-replay", name:"Wix replay safety", passCondition:"Same signed event twice creates one receipt and one order effect" },
     { id:"wix-conflict", name:"Wix ambiguous match", passCondition:"Conflicting customer/vehicle data pauses for review rather than merging" },
     { id:"gmail-history", name:"Gmail history resume", passCondition:"Cursor resumes without duplicating threads/messages" },
