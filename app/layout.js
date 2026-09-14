@@ -3,6 +3,7 @@ import "./extra.css";
 import "./mobile.css";
 import "./dashboard.css";
 import "./premium-flows.css";
+import RouteBridge from "./RouteBridge";
 
 export const metadata = {
   title: "Subpar OS — Tuning Dashboard",
@@ -12,7 +13,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <RouteBridge />
+        {children}
+      </body>
     </html>
   );
 }
