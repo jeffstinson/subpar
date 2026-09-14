@@ -15,6 +15,17 @@ function compact(object) {
   return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
 }
 
+function timestampValue(value) {
+  if (!value) return new Date().toISOString();
+  const text = String(value);
+  if (/^\d{10,}$/.test(text)) {
+    const date = new Date(Number(text));
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
+
 async function findCustomerByEmail(supabase, address) {
   if (!address) return null;
   const { data, error } = await supabase
@@ -220,6 +231,7 @@ export async function applyGmailThreadPlan(plan) {
   const appliedMessages = [];
   for (const message of plan.messages || []) {
     if (!message.id) continue;
+    const messageTimestamp = timestampValue(message.receivedAt);
     const { data:stored, error:messageError } = await supabase
       .from("messages")
       .upsert({
@@ -233,8 +245,8 @@ export async function applyGmailThreadPlan(plan) {
         body_text:message.snippet || "",
         body_html:null,
         customer_visible:true,
-        received_at:message.direction === "inbound" ? (message.receivedAt || new Date().toISOString()) : null,
-        sent_at:message.direction === "outbound" ? (message.receivedAt || new Date().toISOString()) : null,
+        received_at:message.direction === "inbound" ? messageTimestamp : null,
+        sent_at:message.direction === "outbound" ? messageTimestamp : null,
       }, { onConflict:"conversation_id,external_message_id" })
       .select("id,external_message_id,direction,created_at")
       .single();
