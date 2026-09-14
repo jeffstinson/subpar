@@ -48,20 +48,73 @@ export function buildStoragePath({ projectNumber, kind, fileName, revisionNumber
   return `${project}/customer/${stamp}-${nonce}-${safe}`;
 }
 
+function ticketSecret() {
+  if (getDataMode() !== "supabase") return "subpar-demo-ticket-secret-not-for-production";
+  const secret = process.env.SUBPAR_FILE_TICKET_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("SUBPAR_FILE_TICKET_SECRET must be set to a strong server-only value before Supabase file uploads are enabled.");
+  }
+  return secret;
+}
+
+function encodeTicketPayload(payload) {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+function signTicketPayload(encoded) {
+  return crypto.createHmac("sha256", ticketSecret()).update(encoded).digest("base64url");
+}
+
+export function createFinalizeToken(payload, ttlSeconds = 900) {
+  const body = {
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + Math.max(60, Math.min(Number(ttlSeconds) || 900, 1800)),
+    nonce: crypto.randomBytes(8).toString("hex"),
+  };
+  const encoded = encodeTicketPayload(body);
+  return `${encoded}.${signTicketPayload(encoded)}`;
+}
+
+export function verifyFinalizeToken(token) {
+  const [encoded, signature] = String(token || "").split(".");
+  if (!encoded || !signature) throw new Error("Invalid file finalization token");
+  const expected = signTicketPayload(encoded);
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    throw new Error("Invalid file finalization token signature");
+  }
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  } catch {
+    throw new Error("Invalid file finalization token payload");
+  }
+  if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
+    throw new Error("File finalization token expired");
+  }
+  return payload;
+}
+
 export function getStorageReadiness() {
   const persistence = getPersistenceReadiness();
   const buckets = storageBuckets();
+  const ticketSecretConfigured = getDataMode() !== "supabase" || Boolean(process.env.SUBPAR_FILE_TICKET_SECRET?.length >= 32);
   return {
     mode: getDataMode(),
     provider: getDataMode() === "supabase" ? "supabase-storage" : "demo-private-storage",
     privateByDefault: true,
     signedDownloads: true,
     signedUploads: true,
+    uploadFinalization: true,
     immutableTuneFiles: true,
-    configured: persistence.supabaseConfigured,
+    configured: persistence.supabaseConfigured && ticketSecretConfigured,
+    ticketSecretConfigured,
     buckets,
     maxSignedDownloadSeconds: 900,
     signedUploadWindow: "provider-managed",
+    finalizeWindowSeconds: 900,
   };
 }
 
@@ -100,14 +153,26 @@ export async function createSignedDownload({ bucket, path, expiresIn = 300, down
   };
 }
 
-export async function createSignedUpload({ kind, projectNumber, fileName, revisionNumber, logId }) {
+export async function createSignedUpload({ kind, projectNumber, projectId, fileName, revisionNumber, revisionId, logId }) {
   const buckets = storageBuckets();
   const bucket = buckets[kind];
   if (!bucket) throw new Error(`Unsupported file kind '${kind}'`);
-  const path = buildStoragePath({ projectNumber, kind, fileName, revisionNumber, logId });
+  const safeName = sanitizeFileName(fileName);
+  const path = buildStoragePath({ projectNumber, kind, fileName: safeName, revisionNumber, logId });
+  const finalizeToken = createFinalizeToken({
+    projectNumber,
+    projectId: projectId || null,
+    kind,
+    bucket,
+    path,
+    fileName: safeName,
+    revisionNumber: revisionNumber || null,
+    revisionId: revisionId || null,
+    logId: logId || null,
+  });
 
   if (getDataMode() !== "supabase") {
-    return demoTicket("upload", { bucket, path, kind, fileName: sanitizeFileName(fileName) });
+    return demoTicket("upload", { bucket, path, kind, fileName: safeName, finalizeToken });
   }
 
   const supabase = getSupabaseServerClient();
@@ -122,5 +187,29 @@ export async function createSignedUpload({ kind, projectNumber, fileName, revisi
     kind,
     token: data.token,
     signedUrl: data.signedUrl,
+    finalizeToken,
+  };
+}
+
+export async function verifyStoredObject({ bucket, path }) {
+  if (getDataMode() !== "supabase") {
+    return { exists: false, demo: true, size: null, metadata: null };
+  }
+  const supabase = getSupabaseServerClient();
+  const pieces = String(path).split("/");
+  const name = pieces.pop();
+  const folder = pieces.join("/");
+  const { data, error } = await supabase.storage.from(bucket).list(folder, {
+    limit: 20,
+    search: name,
+    sortBy: { column: "name", order: "asc" },
+  });
+  if (error) throw new Error(`Unable to verify uploaded file: ${error.message}`);
+  const match = data?.find(item => item.name === name) || null;
+  return {
+    exists: Boolean(match),
+    demo: false,
+    size: match?.metadata?.size ?? null,
+    metadata: match?.metadata || null,
   };
 }
