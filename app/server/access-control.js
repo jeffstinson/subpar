@@ -24,6 +24,9 @@ export const PERMISSIONS = {
   "message.approve": ["owner", "tuner"],
   "message.provider_send": ["owner", "tuner"],
   "automation.manage": ["owner", "tuner"],
+  "library.read": ["owner", "tuner", "staff"],
+  "library.manage": ["owner", "tuner"],
+  "library.publish": ["owner", "tuner"],
   "integration.manage": ["owner"],
   "user.manage": ["owner"],
 };
