@@ -5,6 +5,7 @@ import { useEffect } from "react";
 const routeMap = new Map([
   ["E85 Calculator", "/calculator"],
   ["System Audit", "/audit"],
+  ["Integrations", "/integration-lab"],
 ]);
 
 export default function RouteBridge() {
