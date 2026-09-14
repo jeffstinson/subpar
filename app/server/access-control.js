@@ -100,6 +100,24 @@ export async function resolvePrincipalFromRequest(request, { demoFallback = null
   return null;
 }
 
+export async function requireInternalPrincipal(request, permission = "dashboard.read") {
+  const auth = getAuthReadiness();
+  const principal = await resolvePrincipalFromRequest(request, { demoFallback: auth.internalAuthEnabled ? null : "doug" });
+  if (!principal) return { ok:false, status:401, error:"Authentication required" };
+  if (principal.type !== "internal" || !can(principal, permission)) return { ok:false, status:403, error:"Internal access denied" };
+  return { ok:true, principal };
+}
+
+export async function requireCustomerPrincipal(request) {
+  const auth = getAuthReadiness();
+  const url = new URL(request.url);
+  const preview = auth.portalAuthEnabled ? null : (url.searchParams.get("preview") || "alex");
+  const principal = await resolvePrincipalFromRequest(request, { demoFallback:preview });
+  if (!principal) return { ok:false, status:401, error:"Authentication required" };
+  if (principal.type !== "customer") return { ok:false, status:403, error:"Customer portal access denied" };
+  return { ok:true, principal };
+}
+
 export function getAccessReadiness() {
   const persistence = getPersistenceReadiness();
   const auth = getAuthReadiness();
