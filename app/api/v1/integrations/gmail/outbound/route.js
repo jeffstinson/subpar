@@ -1,8 +1,9 @@
 import { can, canAccessProject, resolvePrincipalFromRequest } from "../../../../../server/access-control";
-import { approveGmailDraft, cancelGmailDraft, listGmailOutbound, queueGmailDraft } from "../../../../../server/gmail-outbound";
+import { approveGmailDraft, cancelGmailDraft, queueGmailDraft } from "../../../../../server/gmail-outbound";
 import { syncIntakeHandoffStatus } from "../../../../../server/intake-invite-send";
 import { sendApprovedOutboundAction } from "../../../../../server/outbound-dispatch";
 import { getProjectById } from "../../../../../server/repository";
+import { listOutboundActions } from "../../../../../server/safe-gmail-send";
 
 export async function GET(request){
   try{
@@ -18,7 +19,7 @@ export async function GET(request){
       if(!canAccessProject(principal,project))return Response.json({ok:false,error:"Project access denied"},{status:403});
       projectId=project.id;
     }
-    const data=await listGmailOutbound({projectId,status:url.searchParams.get("status")||null,limit:Number(url.searchParams.get("limit"))||30});
+    const data=await listOutboundActions({projectId,status:url.searchParams.get("status")||null,limit:Number(url.searchParams.get("limit"))||50});
     return Response.json({ok:true,data},{headers:{"Cache-Control":"no-store"}});
   }catch(error){return Response.json({ok:false,error:error.message},{status:400,headers:{"Cache-Control":"no-store"}})}
 }
