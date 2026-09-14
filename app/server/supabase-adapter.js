@@ -90,16 +90,17 @@ export async function supabaseProject(idOrNumber) {
   if (!project && /^[0-9a-f-]{36}$/i.test(String(idOrNumber))) project = one(await rest("tune_projects", `select=*&id=eq.${encodeURIComponent(idOrNumber)}&limit=1`));
   if (!project) return null;
 
+  const cycleFilter = project.current_cycle_id ? `&cycle_id=eq.${encodeURIComponent(project.current_cycle_id)}` : "";
   const [customerRows, vehicleRows, orderRows, requirements, revisions, logs, files, messages, events] = await Promise.all([
     rest("customers", `select=*&id=eq.${project.customer_id}&limit=1`),
     rest("vehicles", `select=*&id=eq.${project.vehicle_id}&limit=1`),
     project.order_id ? rest("orders", `select=*&id=eq.${project.order_id}&limit=1`) : Promise.resolve([]),
-    rest("project_requirements", `select=*&project_id=eq.${project.id}&order=created_at.asc`),
-    rest("revisions", `select=*&project_id=eq.${project.id}&order=revision_number.asc`),
-    rest("logs", `select=*&project_id=eq.${project.id}&order=uploaded_at.desc`),
-    rest("files", `select=*&project_id=eq.${project.id}&order=created_at.desc`),
+    rest("project_requirements", `select=*&project_id=eq.${project.id}${cycleFilter}&order=created_at.asc`),
+    rest("revisions", `select=*&project_id=eq.${project.id}${cycleFilter}&order=revision_number.asc`),
+    rest("logs", `select=*&project_id=eq.${project.id}${cycleFilter}&order=uploaded_at.desc`),
+    rest("files", `select=*&project_id=eq.${project.id}${cycleFilter}&order=created_at.desc`),
     rest("messages", `select=*&project_id=eq.${project.id}&order=created_at.asc`),
-    rest("events", `select=*&project_id=eq.${project.id}&order=created_at.desc`),
+    rest("events", `select=*&project_id=eq.${project.id}${cycleFilter}&order=created_at.desc`),
   ]);
 
   return {
@@ -133,7 +134,7 @@ export async function supabaseVehicles() {
   const [vehicles, customers, projects] = await Promise.all([
     rest("vehicles", "select=*&order=created_at.desc"),
     rest("customers", "select=*"),
-    rest("tune_projects", "select=id,project_number,vehicle_id,status,platform,current_revision_number"),
+    rest("tune_projects", "select=id,project_number,vehicle_id,status,platform,current_revision_number,current_cycle_id"),
   ]);
   return vehicles.map(raw => ({
     ...camelize(raw),
@@ -173,7 +174,7 @@ export async function supabaseSystem() {
   return {
     mode: "supabase",
     mutationMode: readiness.mutationsEnabled ? "enabled" : "dry-run",
-    schemaVersion: "2026-09-14.2",
+    schemaVersion: "2026-09-14.3",
     connectivity: "ok",
     latencyMs: Date.now() - started,
     probeRows: rows.length,
