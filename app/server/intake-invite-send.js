@@ -54,34 +54,44 @@ export async function sendApprovedIntakeInvitation(id,sentBy){
   }
   await syncIntakeHandoffStatus(claimed);
 
+  let provider=null;
+  let payload=claimed.payload||{};
+  let from=process.env.SUBPAR_GMAIL_ACCOUNT;
   try{
-    // Only the newest generated link stays valid. Raw tokens are never written to Subpar tables.
     await supabase.from("intake_access_tokens").update({revoked_at:new Date().toISOString()}).eq("intake_request_id",claimed.intake_request_id).is("revoked_at",null);
     const invite=await createIntakeAccessLink(claimed.intake_request_id,{createdBy:sentBy||"Subpar tuner",hours:168});
-    const payload=claimed.payload||{};
     const body=renderIntakeInvitation({payload,url:invite.url});
-    const from=process.env.SUBPAR_GMAIL_ACCOUNT;
     if(!from)throw new Error("SUBPAR_GMAIL_ACCOUNT is not configured");
     const token=await gmailToken();
     const response=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({raw:rawMessage({from,to:claimed.recipient,subject:claimed.subject,body})}),cache:"no-store"});
-    const provider=await response.json();
+    provider=await response.json();
     if(!response.ok)throw new Error(provider.error?.message||`Gmail send failed (${response.status})`);
-
-    const {data:conversation,error:conversationError}=await supabase.from("conversations").upsert({project_id:null,customer_id:claimed.customer_id,channel:"gmail",external_thread_id:provider.threadId,subject:claimed.subject,updated_at:new Date().toISOString()},{onConflict:"channel,external_thread_id"}).select("id").single();
-    if(conversationError)throw new Error(`Intake invite sent but conversation persistence failed: ${conversationError.message}`);
-
-    const {error:messageError}=await supabase.from("messages").upsert({conversation_id:conversation.id,project_id:null,external_message_id:provider.id,direction:"outbound",sender:from,recipient:claimed.recipient,subject:claimed.subject,body_text:"Secure vehicle intake invitation sent.",body_html:null,customer_visible:true,sent_at:new Date().toISOString()},{onConflict:"conversation_id,external_message_id"});
-    if(messageError)throw new Error(`Intake invite sent but message persistence failed: ${messageError.message}`);
-
-    const sentAt=new Date().toISOString();
-    const {data:done,error:updateError}=await supabase.from("outbound_actions").update({status:"sent",conversation_id:conversation.id,sent_at:sentAt,provider_message_id:provider.id,last_error:null,updated_at:sentAt,payload:{...payload,threadId:provider.threadId||null,sentBy:sentBy||null}}).eq("id",id).select("*").single();
-    if(updateError)throw new Error(`Intake invite sent but queue finalization failed: ${updateError.message}`);
-    await syncIntakeHandoffStatus(done);
-    await supabase.from("events").upsert({project_id:null,customer_id:claimed.customer_id,vehicle_id:null,event_type:"intake.invite.sent",actor_type:"internal",actor_id:sentBy||"Subpar tuner",visibility:"internal",payload:{intakeRequestId:claimed.intake_request_id,outboundActionId:id,providerMessageId:provider.id},idempotency_key:`intake-invite-sent:${claimed.intake_request_id}`},{onConflict:"idempotency_key",ignoreDuplicates:true});
-    return {...done,providerThreadId:provider.threadId||null,replayed:false};
   }catch(error){
     const {data:failed}=await supabase.from("outbound_actions").update({status:"failed",last_error:error.message,updated_at:new Date().toISOString()}).eq("id",id).select("*").maybeSingle();
     if(failed)await syncIntakeHandoffStatus(failed);
     throw error;
+  }
+
+  // Gmail accepted the message. Record provider acceptance immediately so a bookkeeping retry can never send it twice.
+  const sentAt=new Date().toISOString();
+  const providerThreadId=provider.threadId||null;
+  const {data:sent,error:sentError}=await supabase.from("outbound_actions").update({status:"sent",sent_at:sentAt,provider_message_id:provider.id,last_error:null,updated_at:sentAt,payload:{...payload,threadId:providerThreadId,sentBy:sentBy||null}}).eq("id",id).select("*").single();
+  if(sentError)throw new Error(`Gmail accepted intake invite ${provider.id}, but queue acknowledgment failed: ${sentError.message}`);
+  await syncIntakeHandoffStatus(sent);
+
+  try{
+    const {data:conversation,error:conversationError}=await supabase.from("conversations").upsert({project_id:null,customer_id:claimed.customer_id,channel:"gmail",external_thread_id:providerThreadId,subject:claimed.subject,updated_at:new Date().toISOString()},{onConflict:"channel,external_thread_id"}).select("id").single();
+    if(conversationError)throw new Error(conversationError.message);
+
+    const {error:messageError}=await supabase.from("messages").upsert({conversation_id:conversation.id,project_id:null,external_message_id:provider.id,direction:"outbound",sender:from,recipient:claimed.recipient,subject:claimed.subject,body_text:"Secure vehicle intake invitation sent.",body_html:null,customer_visible:true,sent_at:sentAt},{onConflict:"conversation_id,external_message_id"});
+    if(messageError)throw new Error(messageError.message);
+
+    await supabase.from("outbound_actions").update({conversation_id:conversation.id,updated_at:new Date().toISOString()}).eq("id",id);
+    await supabase.from("events").upsert({project_id:null,customer_id:claimed.customer_id,vehicle_id:null,event_type:"intake.invite.sent",actor_type:"internal",actor_id:sentBy||"Subpar tuner",visibility:"internal",payload:{intakeRequestId:claimed.intake_request_id,outboundActionId:id,providerMessageId:provider.id},idempotency_key:`intake-invite-sent:${claimed.intake_request_id}`},{onConflict:"idempotency_key",ignoreDuplicates:true});
+    return {...sent,conversation_id:conversation.id,providerThreadId,replayed:false};
+  }catch(error){
+    const warning=`Provider sent successfully; post-send bookkeeping needs repair: ${error.message}`;
+    await supabase.from("outbound_actions").update({last_error:warning,updated_at:new Date().toISOString()}).eq("id",id);
+    return {...sent,providerThreadId,replayed:false,warning};
   }
 }
