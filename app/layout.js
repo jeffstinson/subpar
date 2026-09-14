@@ -4,6 +4,7 @@ import "./mobile.css";
 import "./dashboard.css";
 import "./premium-flows.css";
 import RouteBridge from "./RouteBridge";
+import SessionSync from "./SessionSync";
 
 export const metadata = {
   title: "Subpar OS — Tuning Dashboard",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <RouteBridge />
+        <SessionSync />
         {children}
       </body>
     </html>
