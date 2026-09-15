@@ -19,9 +19,9 @@ Never reuse Stince AI Supabase, OAuth, storage, webhook, Vercel, Google, Wix or 
    - `SUBPAR_GMAIL_SEND_ENABLED=false`
 5. Keep follow-up automation OFF until closeout behavior is proven.
 
-## 2. Apply schema 0001–0015 in order
+## 2. Apply schema 0001–0016 in order
 
-Current schema head: `0015_activation_readiness`.
+Current schema head: `0016_tuner_library`.
 
 Run, in order:
 
@@ -40,8 +40,11 @@ Run, in order:
 13. `0013_revision_delivery_loop.sql`
 14. `0014_tune_lifecycle_closeout.sql`
 15. `0015_activation_readiness.sql`
+16. `0016_tuner_library.sql`
 
-Then open `/activation` and run the Subpar audit. The schema ledger must show every version through `0015`.
+Then open `/activation` and run the Subpar audit. The schema ledger must show every version through `0016`.
+
+`0016` is intentionally the tuner-owned configuration library. It gives Doug versioned draft/review/publish control over logging recipes, parameter packs and workflow profiles. Do not enable customer automation around those assets until Doug-approved production revisions are published.
 
 ## 3. Prove identities and private files before real data
 
@@ -50,7 +53,7 @@ Create Doug as an owner in `internal_users` and at least one synthetic customer 
 Enable auth in preview and prove:
 
 - Doug can access internal tuner/admin routes.
-- Customer cannot access `/activation`, `/go-live`, `/reviews`, `/delivery`, `/closeout`, `/lifecycle` or internal APIs/files.
+- Customer cannot access `/activation`, `/validation`, `/go-live`, `/reviews`, `/delivery`, `/closeout`, `/lifecycle` or internal APIs/files.
 - Customer can access only their own portal/project-visible records.
 - login refresh, logout and session expiry behave correctly.
 - each private storage lane supports signed upload → finalization → short-lived signed download.
@@ -93,7 +96,22 @@ Overdue follow-ups are warnings, not file/data-integrity blockers.
 
 Mark `activation_integrity` passed only after the audit is clean.
 
-## 6. Test Wix and Gmail credentials before ingestion
+## 6. Validate tuner-owned production library
+
+Before customer automation sends logging assets or relies on a changed workflow profile:
+
+1. Open the tuner library in demo/Supabase preview.
+2. Create a draft from an existing logging recipe, parameter pack or workflow profile.
+3. Review the snapshot and change summary.
+4. Attach any private parameter-pack asset through the dedicated storage path.
+5. Publish as Doug/owner-tuner.
+6. Confirm the previous approved revision is retained as history/retired rather than overwritten.
+7. Confirm the publish action is written to the tuner-library audit ledger.
+8. Re-run CI and the synthetic workflow checks after publishing a meaningful workflow change.
+
+The publish RPC is service-role only; authenticated browser roles cannot execute it directly.
+
+## 7. Test Wix and Gmail credentials before ingestion
 
 Set:
 
@@ -112,9 +130,9 @@ Gmail proof:
 - mailbox profile metadata can be read.
 - no thread/message history is ingested by the connection probe.
 
-The latest Wix and Gmail connection tests must both be PASS in `connection_tests`. Then mark `provider_preflight` passed.
+The latest Wix and Gmail connection tests must both be PASS and less than 24 hours old for final activation. Then mark `provider_preflight` passed.
 
-## 7. Dry-run historical imports
+## 8. Dry-run historical imports
 
 Still keep live apply/send gates OFF.
 
@@ -132,7 +150,7 @@ Gmail:
 
 Resolve every unexplained conflict before apply mode.
 
-## 8. Apply and reconcile history
+## 9. Apply and reconcile history
 
 Only after dry-run results are approved:
 
@@ -147,7 +165,7 @@ Only after dry-run results are approved:
 
 No unexplained records are acceptable. Mark `historical_reconciliation` passed.
 
-## 9. Enable live reads before provider actions
+## 10. Enable live reads before provider actions
 
 Wix:
 1. Enable signed webhook ingress while apply remains OFF.
@@ -162,7 +180,7 @@ Gmail:
 4. Prove expired-history fallback.
 5. Record `gmail_history` passed.
 
-## 10. Enable Gmail provider send last
+## 11. Enable Gmail provider send last
 
 Required flow remains:
 
@@ -172,7 +190,21 @@ Prove idempotency/recovery and confirm a staff-created draft cannot bypass tuner
 
 Record `outbound_email` passed.
 
-## 11. Final production activation
+## 12. CI / quality gate before final cutover
+
+Open `/validation` and confirm the repository quality gate is green for the exact commit being considered for activation.
+
+The GitHub Actions workflow must pass:
+
+1. repository invariants
+2. Next.js production build
+3. demo runtime smoke
+
+The repository validator enforces the unique, gap-free migration chain `0001–0016`, safe default environment gates, protected activation/portal boundaries, service-only RPCs and schema-manifest consistency.
+
+A green CI run proves repository/build/runtime health. It does not by itself prove the Vercel deployment is live or that provider credentials are valid; those remain separate activation evidence.
+
+## 13. Final production activation
 
 Open `/activation` and run Provider Preflight, then run the Subpar audit again.
 
@@ -180,16 +212,18 @@ The `production_activation` checkpoint cannot be manually forced through. The se
 
 - zero blocking audit checks remain
 - infrastructure is ready
-- stored Wix/Gmail connection evidence is PASS
+- schema ledger is complete through `0016`
+- stored Wix/Gmail connection evidence is PASS and fresh
 - historical reconciliation is passed
 - real-data approval is enabled
 - Wix replay is passed
 - Gmail history behavior is passed
 - outbound-email behavior is passed
+- the exact release commit passed CI
 
 Only then press `Activate` for `production_activation`.
 
-## 12. Rollback switches
+## 14. Rollback switches
 
 If anything becomes suspicious after cutover, turn off the narrowest affected gate first:
 
