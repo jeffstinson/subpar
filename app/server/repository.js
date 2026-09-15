@@ -112,8 +112,9 @@ export async function getReadinessData() {
       "supabase/migrations/0013_revision_delivery_loop.sql",
       "supabase/migrations/0014_tune_lifecycle_closeout.sql",
       "supabase/migrations/0015_activation_readiness.sql",
+      "supabase/migrations/0016_tuner_library.sql",
     ],
-    schemaHead: "0015_activation_readiness",
+    schemaHead: "0016_tuner_library",
     syntheticSeed: "supabase/seed/0001_demo.sql",
   };
 }
