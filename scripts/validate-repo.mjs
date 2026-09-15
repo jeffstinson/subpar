@@ -56,8 +56,10 @@ check(activation.includes("24 hours"),"Activation Audit expires stale provider e
 
 const middleware=read("middleware.js");
 check(middleware.includes('"/activation"'),"Activation Center is behind internal route protection");
+check(middleware.includes('"/validation"'),"Quality Gates workspace is behind internal route protection");
 check(middleware.includes('path.startsWith("/portal/")'),"customer portal route boundary exists");
 check(middleware.includes("SUBPAR_INTERNAL_AUTH_ENABLED")&&middleware.includes("SUBPAR_PORTAL_AUTH_ENABLED"),"middleware honors both auth gates");
+check(exists("app/validation/page.js")&&exists("app/validation/validation.module.css"),"Quality Gates workspace files exist");
 
 const archiveDownload=read("app/api/v1/portal/history/[project]/download/route.js");
 check(archiveDownload.includes("requireCustomerPrincipal"),"archived final download requires customer identity");
