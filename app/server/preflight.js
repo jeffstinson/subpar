@@ -10,6 +10,7 @@ const expectedTables = [
   "import_batches","import_items","intake_requests","intake_access_tokens","integration_cutovers","schema_migrations","connection_tests","setup_checkpoints",
   "vehicle_catalog","logging_recipes","parameter_pack_profiles","platform_workflow_profiles","log_parser_profiles","log_review_sessions","log_annotations","external_log_sources","revision_deliveries",
   "tune_cycles","project_closeouts","lifecycle_followups","activation_audit_runs","activation_audit_checks",
+  "tuner_library_revisions","tuner_library_assets","tuner_library_audit",
 ];
 
 function ms(start){return Math.max(0,Date.now()-start)}
