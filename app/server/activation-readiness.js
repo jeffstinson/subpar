@@ -10,7 +10,7 @@ import { getStorageReadiness } from "./storage";
 import { getSupabaseServerClient } from "./supabase-server";
 import { getCustomerLifecycleHistory,getLifecycleWorkspace } from "./tune-lifecycle";
 
-const EXPECTED_SCHEMA_HEAD="0015";
+const EXPECTED_SCHEMA_HEAD="0016";
 const PASS_CHECKPOINT_STATES=new Set(["passed","ready"]);
 const PROVIDER_EVIDENCE_MAX_AGE_MS=24*60*60*1000;
 
@@ -273,7 +273,7 @@ export async function listActivationAudits(limit=8){
 }
 
 export function activationCutoverSequence(){return [
-  {step:1,key:"infrastructure",label:"Provision isolated infrastructure",detail:"Dedicated Supabase, private buckets, auth identities and all migrations through 0015."},
+  {step:1,key:"infrastructure",label:"Provision isolated infrastructure",detail:"Dedicated Supabase, private buckets, auth identities and all migrations through 0016."},
   {step:2,key:"synthetic",label:"Prove the synthetic end-to-end loop",detail:"Intake → project → parser → review → revision → delivery → closeout → Cycle 2 retune."},
   {step:3,key:"providers",label:"Verify provider connections",detail:"Wix OAuth and Gmail OAuth/profile probes can run before ingest/apply/send gates are enabled; final evidence must be less than 24 hours old."},
   {step:4,key:"history",label:"Dry-run and reconcile history",detail:"Wix orders + Gmail threads must reconcile with no unexplained records or ambiguous auto-merges."},
