@@ -21,6 +21,7 @@ export const GO_LIVE_MIGRATIONS = [
   { id:"0013", file:"0013_revision_delivery_loop.sql", purpose:"Revision QA + private artifact release + customer acknowledgement + next-log loop" },
   { id:"0014", file:"0014_tune_lifecycle_closeout.sql", purpose:"Tune-cycle boundaries + atomic closeout + follow-up queue + history-safe retunes" },
   { id:"0015", file:"0015_activation_readiness.sql", purpose:"Production activation audit ledger + cross-cycle/file integrity checks" },
+  { id:"0016", file:"0016_tuner_library.sql", purpose:"Versioned tuner-owned logging recipes, parameter packs and workflow profiles" },
 ];
 
 export const GO_LIVE_ENV_GROUPS = [
@@ -57,12 +58,13 @@ export function getGoLiveReadiness(){
   const liveReady=prerequisitesReady&&integrations.realDataApproved;
   return {mode:getDataMode(),prerequisitesReady,liveReady,checks,envGroups,migrations:GO_LIVE_MIGRATIONS,integrationReadiness:integrations,wixReadReadiness:wixRead,connectionTestsEnabled:process.env.SUBPAR_CONNECTION_TESTS_ENABLED==="true",importApplyEnabled:process.env.SUBPAR_IMPORT_APPLY_ENABLED==="true",followupAutomationEnabled:process.env.SUBPAR_FOLLOWUP_AUTOMATION_ENABLED==="true",recommendedSequence:[
     "Provision dedicated Subpar Supabase project",
-    "Run migrations 0001 through 0015 in order",
+    "Run migrations 0001 through 0016 in order",
     "Open /activation and run the Subpar + storage integrity audit",
     "Seed synthetic records and verify dashboard parity",
     "Create Doug owner + synthetic customer identities",
     "Verify login, route boundaries and private files",
     "Validate the BMW/Supra intelligence matrix against Doug-approved examples",
+    "Publish Doug-approved tuner-library recipes / parameter packs before customer automation",
     "Verify customer intake link → intelligence resolution → compatibility review → project activation",
     "Validate MHD parser channel aliases + review heuristics against Doug-approved sample logs",
     "Validate review cockpit comparison, annotations, decisions and Datazap reference behavior",
@@ -102,12 +104,13 @@ export function planHistoricalImport({provider,records,months,batchSize}){
 
 export function goLiveValidationSuite(){return [
   {id:"db",name:"Database parity",passCondition:"Synthetic customer/vehicle/order/project counts match seed manifest"},
-  {id:"activation-audit",name:"Production activation audit",passCondition:"Schema head 0015 is installed and the operational integrity RPC reports zero blocker counts"},
+  {id:"activation-audit",name:"Production activation audit",passCondition:"Schema head 0016 is installed and the operational integrity RPC reports zero blocker counts"},
   {id:"auth-internal",name:"Doug internal identity",passCondition:"Owner can access tuner routes and management APIs"},
   {id:"auth-customer",name:"Customer isolation",passCondition:"Synthetic customer can access only their portal/project-visible data"},
   {id:"cross-boundary",name:"Cross-boundary denial",passCondition:"Customer token is rejected from tuner routes and internal files"},
   {id:"files",name:"Private file round-trip",passCondition:"Signed upload → verify → register → signed download succeeds"},
   {id:"vehicle-intelligence",name:"Vehicle intelligence",passCondition:"G20/B58TU/MHD, F82/S55/BM3 and G80/S58/EcuTek resolve the Doug-approved workflow, recipe and requirements"},
+  {id:"tuner-library",name:"Tuner-owned library",passCondition:"Draft → review → publish of a recipe/parameter pack is versioned, audited and service-role only"},
   {id:"log-intelligence",name:"Datalog intelligence",passCondition:"Doug-approved sample logs map required channels with expected confidence and review flags before persistent analysis is enabled"},
   {id:"log-review",name:"Datalog review workflow",passCondition:"Current vs previous pull deltas, tuner annotations and explicit create-revision/re-log/complete/hold decisions persist and hand off the project correctly"},
   {id:"datazap-reference",name:"Datazap reference boundary",passCondition:"Valid datazap.me URLs link to a project as references without being treated as parsed numeric evidence until a verified source file exists"},
