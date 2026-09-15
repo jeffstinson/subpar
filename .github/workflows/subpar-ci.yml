@@ -1,0 +1,79 @@
+name: Subpar OS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: subpar-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Repository + Build + Demo Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      SUBPAR_DATA_MODE: demo
+      SUBPAR_AUTH_MODE: demo
+      SUBPAR_MUTATIONS_ENABLED: "false"
+      SUBPAR_ALLOW_SYNTHETIC_SEED: "false"
+      SUBPAR_INTERNAL_AUTH_ENABLED: "false"
+      SUBPAR_PORTAL_AUTH_ENABLED: "false"
+      SUBPAR_REAL_DATA_APPROVED: "false"
+      SUBPAR_INTEGRATION_STAGING_ENABLED: "false"
+      SUBPAR_CONNECTION_TESTS_ENABLED: "false"
+      SUBPAR_IMPORT_APPLY_ENABLED: "false"
+      SUBPAR_WIX_READ_ENABLED: "false"
+      SUBPAR_WIX_WEBHOOK_ENABLED: "false"
+      SUBPAR_WIX_APPLY_ENABLED: "false"
+      SUBPAR_GMAIL_SYNC_ENABLED: "false"
+      SUBPAR_GMAIL_SEND_ENABLED: "false"
+      SUBPAR_FOLLOWUP_AUTOMATION_ENABLED: "false"
+      NEXT_PUBLIC_SUBPAR_ENV: ci
+      NEXT_PUBLIC_SUBPAR_APP_URL: http://127.0.0.1:3000
+      SUBPAR_SMOKE_BASE_URL: http://127.0.0.1:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Repository invariants
+        run: npm run validate:repo
+
+      - name: Production build
+        run: npm run build
+
+      - name: Start built app
+        run: |
+          nohup npm run start -- -p 3000 > /tmp/subpar-next.log 2>&1 &
+          echo $! > /tmp/subpar-next.pid
+
+      - name: Demo runtime smoke
+        run: npm run smoke:demo
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/subpar-next.log || true
+
+      - name: Stop built app
+        if: always()
+        run: |
+          if [ -f /tmp/subpar-next.pid ]; then
+            kill "$(cat /tmp/subpar-next.pid)" || true
+          fi
