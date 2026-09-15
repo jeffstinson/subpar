@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "validate:repo": "node scripts/validate-repo.mjs",
+    "smoke:demo": "node scripts/smoke-demo.mjs",
+    "test": "npm run validate:repo",
+    "ci:static": "npm run validate:repo && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
